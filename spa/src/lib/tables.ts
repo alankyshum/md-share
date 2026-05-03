@@ -304,22 +304,22 @@ export function enhanceTables(target: HTMLElement, dark: boolean) {
     host.className = 'tabulator-host';
     table.replaceWith(host);
 
-    const persistenceID = `mdshare-table-${tableSignature(data.headers, data.rows[0]?.map(c => c.text) || [])}`;
+    const persistenceID = `mdshare-table-v2-${tableSignature(data.headers, data.rows[0]?.map(c => c.text) || [])}`;
 
     new Tabulator(host, {
       data: rowData,
       columns: inferredCols.map(buildTabulatorColumn),
-      // fitDataFill: size columns to content but distribute remaining width
-      // across all columns proportionally — combined with maxInitialWidth on
-      // each column (set in buildTabulatorColumn) this prevents one long-text
-      // column from blowing past the container.
-      layout: 'fitDataFill',
-      // Recompute layout when sidebar opens/closes or window resizes.
-      layoutColumnsOnNewData: true,
+      // 'fitData' sizes columns to their content (capped by maxInitialWidth
+      // per column) without auto-stretching/redistributing on resize. This
+      // is critical for letting the user manually drag-resize columns —
+      // 'fitDataFill' / 'fitDataStretch' continually re-layout and fight
+      // against the user's drag, making columns appear non-resizable.
+      // Container width is handled by CSS (host max-width: 100% + inner
+      // tableholder overflow-x: auto).
+      layout: 'fitData',
       movableColumns: true,
       resizableColumns: true,
-      // Disable virtual row rendering — required for variable row heights
-      // (wrapped cells) to render correctly without clipping.
+      // Keep wrapped rows from clipping during virtual scroll.
       renderVerticalBuffer: 200,
       pagination: rowData.length > 50,
       paginationSize: 50,
