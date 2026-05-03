@@ -1,0 +1,5 @@
+{
+  "base_url": "https://md-share-kut.pages.dev",
+  "api_token": "<paste your SHARE_MD_TOKEN here>",
+  "short_threshold": 1024
+}

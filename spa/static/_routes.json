@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Route /api/*, /s/*, /og/* to Pages Functions; everything else falls through to the static SPA.",
+  "include": ["/api/*", "/s/*", "/og/*"],
+  "exclude": []
+}

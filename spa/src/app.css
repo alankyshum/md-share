@@ -1,0 +1,395 @@
+@import "tailwindcss";
+
+/* GitHub markdown CSS */
+@import "github-markdown-css/github-markdown.css";
+
+/* highlight.js base theme */
+@import "highlight.js/styles/github.css";
+
+/* ─── CSS custom properties (theme) ─────────────────────────────────── */
+/* Light defaults */
+:root {
+  --bg: #ffffff;
+  --bg-elevated: #f6f8fa;
+  --fg: #1f2328;
+  --border: #d0d7de;
+  --muted: #59636e;
+  --accent: #0969da;
+  --accent-fg: #ffffff;
+}
+
+/* Dark via OS pref (only if no manual override) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117;
+    --bg-elevated: #161b22;
+    --fg: #e6edf3;
+    --border: #30363d;
+    --muted: #848d97;
+    --accent: #2f81f7;
+    --accent-fg: #ffffff;
+  }
+}
+
+/* Manual dark override — always applies regardless of OS */
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --bg-elevated: #161b22;
+  --fg: #e6edf3;
+  --border: #30363d;
+  --muted: #848d97;
+  --accent: #2f81f7;
+  --accent-fg: #ffffff;
+}
+
+/* Manual light override — always applies regardless of OS */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-elevated: #f6f8fa;
+  --fg: #1f2328;
+  --border: #d0d7de;
+  --muted: #59636e;
+  --accent: #0969da;
+  --accent-fg: #ffffff;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  scroll-behavior: smooth;
+}
+
+/* ─── highlight.js dark theme ─────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hljs {
+    background: #161b22;
+    color: #c9d1d9;
+  }
+}
+
+:root[data-theme="dark"] .hljs {
+  background: #161b22;
+  color: #c9d1d9;
+}
+
+/* ─── Layout ───────────────────────────────────────────────────────────── */
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.layout-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── Markdown body ────────────────────────────────────────────────────── */
+.markdown-body {
+  box-sizing: border-box;
+  min-width: 200px;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 2.5rem;
+}
+
+@media (max-width: 767px) {
+  .markdown-body {
+    padding: 1rem;
+  }
+}
+
+/* Override github-markdown-css background to follow our theme */
+.markdown-body {
+  background: transparent !important;
+  color: var(--fg) !important;
+}
+
+/* Restore list bullets/numbers — Tailwind v4 preflight resets `list-style: none`
+   on all ul/ol, and github-markdown-css doesn't set an explicit list-style-type
+   for unordered lists (relies on browser default which preflight nukes). */
+.markdown-body ul,
+.markdown-body ol {
+  list-style: revert !important;
+}
+.markdown-body ul ul,
+.markdown-body ol ul {
+  list-style-type: circle !important;
+}
+.markdown-body ul ul ul,
+.markdown-body ol ul ul,
+.markdown-body ul ol ul,
+.markdown-body ol ol ul {
+  list-style-type: square !important;
+}
+/* Task-list items (GFM checkboxes) keep their list-style: none — re-suppress
+   the bullet for any <li> that contains a task checkbox. */
+.markdown-body li.task-list-item,
+.markdown-body ul.contains-task-list,
+.markdown-body ul.contains-task-list > li {
+  list-style-type: none !important;
+}
+
+/* ─── Mermaid ──────────────────────────────────────────────────────────── */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 1.5em 0;
+}
+
+/* ─── Mind map (markmap) ───────────────────────────────────────────────── */
+.markmap {
+  margin: 1.5em 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.markmap > svg {
+  display: block;
+}
+
+/* Theme-responsive markmap colors. The markmap library injects an inline
+   <style> in each rendered SVG with hardcoded defaults like
+   `--markmap-text-color: #333`, which makes text unreadable on dark
+   backgrounds. We override those CSS variables on every `.markmap` element
+   (both our outer wrapper div and the inner SVG also gets class="markmap")
+   so the theme palette flows through.
+
+   `!important` is needed because the inline <style> in the SVG appears
+   later in source order than this stylesheet — CSS source order beats
+   external stylesheet for equal-specificity rules. */
+
+/* Light theme defaults (also the auto/no-preference baseline) */
+.markmap {
+  --markmap-text-color: var(--fg) !important;
+  --markmap-circle-open-bg: var(--bg) !important;
+  --markmap-code-bg: var(--bg) !important;
+  --markmap-code-color: var(--fg) !important;
+  --markmap-a-color: var(--accent) !important;
+  --markmap-a-hover-color: color-mix(in srgb, var(--accent) 80%, white) !important;
+  --markmap-table-border: 1px solid var(--border) !important;
+  --markmap-highlight-bg: color-mix(in srgb, var(--accent) 25%, transparent) !important;
+}
+/* Markmap link strokes (curved branches) — inherit currentColor by default,
+   which is the text color we set above; explicitly set so branches are visible
+   regardless of node text color. */
+.markmap .markmap-link {
+  stroke: var(--muted) !important;
+  stroke-opacity: 0.6;
+}
+/* Node circles (collapse/expand toggles) */
+.markmap .markmap-node > circle {
+  stroke: var(--muted) !important;
+}
+
+/* ─── Clickable diagrams (open in fullscreen viewer) ───────────────────── */
+.clickable-diagram {
+  cursor: zoom-in;
+  position: relative;
+  transition: outline-color 0.15s;
+  outline: 1px solid transparent;
+}
+.clickable-diagram:hover {
+  outline-color: var(--accent);
+}
+
+/* ─── Tabulator (interactive tables) ───────────────────────────────────── */
+.tabulator-host {
+  margin: 1.5em 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tabulator {
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  font-size: 14px !important;
+  color: var(--fg) !important;
+}
+.tabulator .tabulator-header {
+  background: var(--bg-elevated) !important;
+  border-bottom: 2px solid var(--border) !important;
+  color: var(--fg) !important;
+  font-weight: 600;
+}
+.tabulator .tabulator-header .tabulator-col {
+  background: transparent !important;
+  border-right: 1px solid var(--border) !important;
+}
+.tabulator .tabulator-header .tabulator-col.tabulator-sortable:hover {
+  background: var(--bg) !important;
+  cursor: pointer;
+}
+.tabulator .tabulator-header .tabulator-col .tabulator-col-content {
+  padding: 8px 10px !important;
+}
+.tabulator .tabulator-header .tabulator-col .tabulator-header-filter input {
+  background: var(--bg) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.tabulator-row {
+  background: var(--bg) !important;
+  color: var(--fg) !important;
+  border-bottom: 1px solid var(--border) !important;
+  min-height: 32px !important;
+}
+.tabulator-row.tabulator-row-even {
+  background: var(--bg-elevated) !important;
+}
+.tabulator-row:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg)) !important;
+}
+.tabulator-row .tabulator-cell {
+  border-right: 1px solid var(--border) !important;
+  padding: 6px 10px !important;
+}
+.tabulator .tabulator-footer {
+  background: var(--bg-elevated) !important;
+  color: var(--fg) !important;
+  border-top: 1px solid var(--border) !important;
+}
+.tabulator .tabulator-footer .tabulator-page,
+.tabulator .tabulator-footer .tabulator-page-size {
+  background: var(--bg) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--border) !important;
+}
+.tabulator .tabulator-footer .tabulator-page.active {
+  background: var(--accent) !important;
+  color: var(--accent-fg) !important;
+}
+.tabulator-menu {
+  background: var(--bg) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.tabulator-menu .tabulator-menu-item:hover {
+  background: var(--bg-elevated) !important;
+}
+
+/* ─── Frappe Gantt (interactive gantt charts) ──────────────────────────── */
+.frappe-gantt-host {
+  margin: 1.5em 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  padding: 12px;
+  overflow-x: auto;
+}
+.frappe-gantt-host .gantt-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--fg);
+}
+.frappe-gantt-host .gantt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.frappe-gantt-host .gantt-mode-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.frappe-gantt-host .gantt-mode-btn:hover {
+  background: var(--bg-elevated);
+}
+.frappe-gantt-host .gantt-mode-btn.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.frappe-gantt-host .gantt-target {
+  background: var(--bg);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+/* frappe-gantt internal SVG theming */
+.frappe-gantt-host .grid-background { fill: var(--bg); }
+.frappe-gantt-host .grid-row { fill: var(--bg); }
+.frappe-gantt-host .grid-row:nth-child(even) { fill: var(--bg-elevated); }
+.frappe-gantt-host .row-line { stroke: var(--border); }
+.frappe-gantt-host .tick { stroke: var(--border); }
+.frappe-gantt-host .today-highlight { fill: color-mix(in srgb, var(--accent) 15%, transparent); }
+.frappe-gantt-host .lower-text,
+.frappe-gantt-host .upper-text { fill: var(--fg); font-size: 11px; }
+.frappe-gantt-host .bar-label { fill: var(--fg); font-size: 11px; }
+.frappe-gantt-host .bar { fill: var(--accent); stroke: var(--accent); }
+.frappe-gantt-host .bar-progress { fill: color-mix(in srgb, var(--accent) 60%, #000); }
+.frappe-gantt-host .gantt-crit .bar { fill: #ef4444; }
+.frappe-gantt-host .gantt-crit .bar-progress { fill: #b91c1c; }
+.frappe-gantt-host .gantt-done .bar { fill: #10b981; }
+.frappe-gantt-host .gantt-done .bar-progress { fill: #059669; }
+.frappe-gantt-host .gantt-milestone .bar { fill: #f59e0b; }
+
+/* ─── Chart.js (interactive pie/bar/line) ──────────────────────────────── */
+.chart-host {
+  margin: 1.5em 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  padding: 16px;
+}
+.chart-host .chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--fg);
+  text-align: center;
+}
+.chart-host .chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 320px;
+}
+
+/* ─── Selection menu (floating, mobile-friendly) ───────────────────────── */
+.sel-menu .sel-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.1s;
+  /* Touch target: at least 36px tall on mobile */
+  min-height: 36px;
+}
+.sel-menu .sel-menu-btn:hover,
+.sel-menu .sel-menu-btn:active {
+  background: var(--bg-elevated);
+}
+.sel-menu .sel-menu-icon {
+  font-size: 14px;
+  opacity: 0.85;
+}
+@media (max-width: 600px) {
+  .sel-menu .sel-menu-btn {
+    padding: 8px 12px;
+    min-height: 40px;
+    font-size: 14px;
+  }
+}
+
+/* ─── Print ────────────────────────────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+}

@@ -1,0 +1,13 @@
+# Build artifacts
+node_modules/
+.svelte-kit/
+build/
+dist/
+
+# Cloudflare Wrangler local state
+.wrangler/
+
+# Editor / OS
+.DS_Store
+.vscode/
+*.log
