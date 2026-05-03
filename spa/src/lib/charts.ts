@@ -2,6 +2,7 @@
 // Replaces:
 //   - mermaid `pie` blocks → Chart.js doughnut (interactive: hover tooltips, legend toggle, click)
 //   - mermaid `xychart-beta` blocks → Chart.js line/bar
+//     - with `%% @chart-ext v1` header → enhanced renderer (fills, annotations, dual y-axis, per-series styling)
 //   - new ```chart fence → arbitrary Chart.js JSON config
 
 import {
@@ -11,13 +12,18 @@ import {
   CategoryScale, LinearScale, TimeScale,
   Title, Tooltip, Legend,
   Colors,
+  Filler,
 } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
+import yaml from 'js-yaml';
 
 Chart.register(
   PieController, DoughnutController, BarController, LineController,
   ArcElement, BarElement, PointElement, LineElement,
   CategoryScale, LinearScale, TimeScale,
-  Title, Tooltip, Legend, Colors
+  Title, Tooltip, Legend, Colors,
+  Filler,
+  annotationPlugin
 );
 
 interface ChartContext {
@@ -159,6 +165,87 @@ function parseMermaidXyChart(source: string): {
   return { title, horizontal, xCategories, xLabel, yLabel, series };
 }
 
+// ─── Chart Extension Types ──────────────────────────────────────────────────
+interface ChartExtension {
+  series?: Array<{
+    label?: string;
+    color?: string;
+    width?: number;
+    dash?: number[];
+    points?: boolean;
+    fill_to?: number | 'next' | 'prev';
+    y_axis?: 'left' | 'right';
+  }>;
+  fills?: Array<{
+    above?: number;
+    below?: number;
+    between?: [number, number];
+    color: string;
+    label?: string;
+  }>;
+  annotations?: Array<
+    | { type: 'hline'; value: number; color?: string; dash?: number[]; label?: string }
+    | { type: 'vline'; value: number | string; color?: string; dash?: number[]; label?: string }
+    | { type: 'box'; x_range: [any, any]; y_range: [number, number]; color?: string; label?: string }
+  >;
+  legend?: { position?: 'top' | 'bottom' | 'left' | 'right' | 'none'; display?: boolean };
+  y_axis_right?: { label?: string; range?: [number, number] };
+  interaction?: { tooltip?: 'index' | 'nearest' | 'point'; hover_animations?: boolean };
+}
+
+// ─── Chart Extension Parser ─────────────────────────────────────────────────
+// Detects `%% @chart-ext v1` marker and parses subsequent `%% <yaml>` lines.
+function parseChartExtension(source: string): ChartExtension | null {
+  const lines = source.split(/\r?\n/);
+  const markerIdx = lines.findIndex(l => /^%%\s+@chart-ext\s+v1\s*$/.test(l));
+  if (markerIdx === -1) return null;
+
+  const yamlLines: string[] = [];
+  for (let i = markerIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    // Stop at xychart-beta keyword
+    if (/^\s*xychart-beta\b/i.test(line)) break;
+    // Skip (but don't stop at) mermaid config directives like %%{init: ...}%%
+    if (/^\s*%%\{.*\}%%\s*$/.test(line)) continue;
+    // Skip empty lines but don't stop
+    if (line.trim() === '') continue;
+    // Extract content from %% prefix
+    const m = line.match(/^%%\s?(.*)$/);
+    if (!m) break; // non-comment line before xychart-beta — malformed, stop
+    // Skip the marker line itself (already handled by markerIdx)
+    const content = m[1];
+    // Skip if this is the @chart-ext marker itself (shouldn't happen but guard)
+    if (/^@chart-ext\s+v1\s*$/.test(content)) continue;
+    yamlLines.push(content);
+  }
+
+  if (yamlLines.length === 0) return null;
+
+  try {
+    const parsed = yaml.load(yamlLines.join('\n')) as ChartExtension;
+    return (parsed && typeof parsed === 'object') ? parsed : null;
+  } catch (e) {
+    console.warn('[chart-ext] YAML parse error:', e);
+    return null;
+  }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function withAlpha(color: string, alpha: number): string {
+  if (color.startsWith('#')) {
+    const hex = color.slice(1);
+    const expanded = hex.length === 3
+      ? hex.split('').map(c => c + c).join('')
+      : hex;
+    const bigint = parseInt(expanded, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  return color; // already rgba/named
+}
+
 // ─── Renderers ──────────────────────────────────────────────────────────────
 function renderPie(parsed: ReturnType<typeof parseMermaidPie>, container: HTMLElement, ctx: ChartContext) {
   if (!parsed) return false;
@@ -242,6 +329,176 @@ function renderXyChart(parsed: ReturnType<typeof parseMermaidXyChart>, container
   return true;
 }
 
+function renderEnhancedXyChart(
+  baseParsed: NonNullable<ReturnType<typeof parseMermaidXyChart>>,
+  ext: ChartExtension,
+  container: HTMLElement,
+  ctx: ChartContext
+): boolean {
+  const { wrapper, canvas } = makeWrapper(baseParsed.title);
+  container.replaceWith(wrapper);
+
+  const xLabels = baseParsed.xCategories!;
+
+  // Build datasets — merge base series with extension styling
+  const datasets = baseParsed.series.map((s, i) => {
+    const extSeries = ext.series?.[i] ?? {};
+    const color = extSeries.color ?? PALETTE[i % PALETTE.length];
+    const isLine = s.type === 'line';
+
+    return {
+      type: s.type as any,
+      label: extSeries.label ?? `Series ${i + 1}`,
+      data: s.data,
+      borderColor: color,
+      backgroundColor: isLine
+        ? (extSeries.fill_to !== undefined ? withAlpha(color, 0.2) : 'transparent')
+        : color,
+      borderWidth: extSeries.width ?? (isLine ? 2 : 0),
+      borderDash: extSeries.dash,
+      pointRadius: isLine ? (extSeries.points ? 4 : 0) : 0,
+      pointHoverRadius: isLine ? (extSeries.points ? 7 : 0) : 0,
+      pointBackgroundColor: color,
+      tension: 0.3,
+      fill: extSeries.fill_to !== undefined ? extSeries.fill_to : false,
+      yAxisID: extSeries.y_axis === 'right' ? 'y1' : 'y',
+    };
+  });
+
+  // Build annotation plugin config from fills + annotations
+  const annotations: Record<string, any> = {};
+  let annoCounter = 0;
+
+  // Convert `fills` to annotation boxes spanning full chart width
+  (ext.fills ?? []).forEach(fill => {
+    const id = `fill_${annoCounter++}`;
+    if (fill.above !== undefined) {
+      annotations[id] = {
+        type: 'box',
+        yMin: fill.above,
+        yMax: undefined, // chart top
+        backgroundColor: fill.color,
+        borderWidth: 0,
+        label: fill.label
+          ? { content: fill.label, display: true, position: { x: 'start', y: 'start' }, color: '#666' }
+          : undefined,
+      };
+    } else if (fill.below !== undefined) {
+      annotations[id] = {
+        type: 'box',
+        yMin: undefined, // chart bottom
+        yMax: fill.below,
+        backgroundColor: fill.color,
+        borderWidth: 0,
+        label: fill.label
+          ? { content: fill.label, display: true, position: { x: 'start', y: 'end' }, color: '#666' }
+          : undefined,
+      };
+    } else if (fill.between) {
+      const [a, b] = fill.between;
+      annotations[id] = {
+        type: 'box',
+        yMin: Math.min(a, b),
+        yMax: Math.max(a, b),
+        backgroundColor: fill.color,
+        borderWidth: 0,
+        label: fill.label
+          ? { content: fill.label, display: true, color: '#666' }
+          : undefined,
+      };
+    }
+  });
+
+  // Convert `annotations` array
+  (ext.annotations ?? []).forEach(anno => {
+    const id = `anno_${annoCounter++}`;
+    if (anno.type === 'hline') {
+      annotations[id] = {
+        type: 'line',
+        yMin: anno.value,
+        yMax: anno.value,
+        borderColor: anno.color ?? '#9ca3af',
+        borderWidth: 1.5,
+        borderDash: anno.dash,
+        label: anno.label
+          ? { content: anno.label, display: true, position: 'end', color: anno.color ?? '#666' }
+          : undefined,
+      };
+    } else if (anno.type === 'vline') {
+      // Find x index if value is a label string or number matching a label
+      let xVal: any = anno.value;
+      const idx = xLabels.findIndex(l => String(l) === String(xVal));
+      if (idx !== -1) xVal = idx;
+      annotations[id] = {
+        type: 'line',
+        xMin: xVal,
+        xMax: xVal,
+        borderColor: anno.color ?? '#9ca3af',
+        borderWidth: 1.5,
+        borderDash: anno.dash,
+        label: anno.label
+          ? { content: anno.label, display: true, position: 'start', color: anno.color ?? '#666' }
+          : undefined,
+      };
+    } else if (anno.type === 'box') {
+      annotations[id] = {
+        type: 'box',
+        xMin: anno.x_range[0],
+        xMax: anno.x_range[1],
+        yMin: anno.y_range[0],
+        yMax: anno.y_range[1],
+        backgroundColor: anno.color ?? 'rgba(200,200,200,0.2)',
+        borderWidth: 0,
+        label: anno.label
+          ? { content: anno.label, display: true, color: '#666' }
+          : undefined,
+      };
+    }
+  });
+
+  // Build scales
+  const scales: any = {
+    x: { title: { display: !!baseParsed.xLabel, text: baseParsed.xLabel } },
+    y: { title: { display: !!baseParsed.yLabel, text: baseParsed.yLabel }, position: 'left' },
+  };
+  if (ext.y_axis_right) {
+    scales.y1 = {
+      title: { display: !!ext.y_axis_right.label, text: ext.y_axis_right.label },
+      position: 'right',
+      grid: { drawOnChartArea: false },
+      min: ext.y_axis_right.range?.[0],
+      max: ext.y_axis_right.range?.[1],
+    };
+  }
+
+  const primary = baseParsed.series[0].type;
+  const showLegend = ext.legend?.display ?? (datasets.length > 1);
+  const legendPos = (ext.legend?.position === 'none' || !ext.legend?.position)
+    ? 'bottom'
+    : ext.legend.position as 'top' | 'bottom' | 'left' | 'right';
+
+  new Chart(canvas, {
+    type: primary as any,
+    data: { labels: xLabels, datasets: datasets as any },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: baseParsed.horizontal ? 'y' : 'x',
+      plugins: {
+        legend: {
+          display: showLegend && ext.legend?.position !== 'none',
+          position: legendPos,
+        },
+        tooltip: { mode: ext.interaction?.tooltip ?? 'index', intersect: false },
+        annotation: { annotations } as any,
+      },
+      scales,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+    } as any,
+  });
+  return true;
+}
+
 function renderJsonChart(jsonText: string, container: HTMLElement, ctx: ChartContext): boolean {
   let cfg: any;
   try {
@@ -285,15 +542,21 @@ export function replaceChartBlocks(target: HTMLElement, dark: boolean): number {
   applyTheme({ dark });
   let count = 0;
 
-  // 1. Mermaid pie blocks
   target.querySelectorAll<HTMLElement>('div.mermaid').forEach(block => {
     const text = block.textContent || '';
     if (/^\s*(?:%%[^\n]*\n\s*)*pie\b/i.test(text)) {
       const parsed = parseMermaidPie(text);
       if (parsed && renderPie(parsed, block, { dark })) count++;
-    } else if (/^\s*(?:%%[^\n]*\n\s*)*xychart-beta\b/i.test(text)) {
+    } else if (/xychart-beta\b/i.test(text)) {
+      const ext = parseChartExtension(text);
       const parsed = parseMermaidXyChart(text);
-      if (parsed && renderXyChart(parsed, block, { dark })) count++;
+      if (parsed) {
+        // Graceful degradation: if ext parsing failed or returned null, fall back to plain renderer
+        const ok = ext
+          ? renderEnhancedXyChart(parsed, ext, block, { dark })
+          : renderXyChart(parsed, block, { dark });
+        if (ok) count++;
+      }
     }
   });
 
