@@ -122,6 +122,14 @@ function buildTabulatorColumn(col: InferredCol, idx: number): any {
     headerFilterPlaceholder: '🔎',
     resizable: true,
     headerMenu: columnHeaderMenu,
+    // Cap initial column width so long-text cells wrap instead of growing
+    // unbounded; user can still drag-resize past this.
+    minWidth: 80,
+    maxInitialWidth: col.type === 'string' ? 320 : 200,
+    // formatterParams allow any formatter to opt into HTML rendering — we
+    // already produce HTML in custom formatters, but for plain string columns
+    // without HTML we still need word-wrap to engage at the CSS level.
+    variableHeight: true,
   };
   switch (col.type) {
     case 'currency':
@@ -301,9 +309,18 @@ export function enhanceTables(target: HTMLElement, dark: boolean) {
     new Tabulator(host, {
       data: rowData,
       columns: inferredCols.map(buildTabulatorColumn),
-      layout: 'fitDataStretch',
+      // fitDataFill: size columns to content but distribute remaining width
+      // across all columns proportionally — combined with maxInitialWidth on
+      // each column (set in buildTabulatorColumn) this prevents one long-text
+      // column from blowing past the container.
+      layout: 'fitDataFill',
+      // Recompute layout when sidebar opens/closes or window resizes.
+      layoutColumnsOnNewData: true,
       movableColumns: true,
       resizableColumns: true,
+      // Disable virtual row rendering — required for variable row heights
+      // (wrapped cells) to render correctly without clipping.
+      renderVerticalBuffer: 200,
       pagination: rowData.length > 50,
       paginationSize: 50,
       paginationSizeSelector: [25, 50, 100, 250],
