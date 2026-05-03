@@ -1,4 +1,4 @@
-import { ImageResponse } from 'workers-og';
+import { ImageResponse, loadGoogleFont } from 'workers-og';
 import { deriveMeta } from '../_meta';
 
 interface Env {
@@ -15,6 +15,28 @@ function escapeHtml(s: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/** True if string contains any CJK ideograph, fullwidth punctuation,
+ *  or other glyphs not covered by Inter / system sans (CJK Unified
+ *  Ideographs, Extension A, Compatibility, fullwidth forms, kana). */
+function hasCJK(s: string): boolean {
+  return /[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef\u3000-\u30ff]/.test(s);
+}
+
+/** Fetch a Google Font subset that ONLY contains the characters in `text`.
+ *  Uses workers-og's built-in loadGoogleFont which handles the User-Agent
+ *  + CSS parsing + woff2 fetch internally. The &text= param keeps the font
+ *  payload tiny (only requested chars). Returns null on any failure — caller
+ *  falls back to no font (tofu but at least the OG image still generates). */
+async function loadCjkFontSubset(text: string, weight: number, family: string): Promise<ArrayBuffer | null> {
+  if (!text) return null;
+  try {
+    return await loadGoogleFont({ family, weight, text });
+  } catch (err) {
+    console.error('loadCjkFontSubset failed', { family, weight, err: String(err) });
+    return null;
+  }
 }
 
 /** Pick a deterministic gradient based on key (so each share has a unique-ish look). */
@@ -34,14 +56,14 @@ function pickGradient(key: string): { from: string; to: string; accent: string }
   return palettes[hash % palettes.length];
 }
 
-function buildOgHtml(title: string, description: string, key: string, siteName: string): string {
+function buildOgHtml(title: string, description: string, key: string, siteName: string, fontFamily: string): string {
   const { from, to, accent } = pickGradient(key);
   // IMPORTANT: Satori requires every <div> with multiple child nodes
   // (including whitespace text nodes between tags) to have explicit
   // `display: flex` (or `display: none`). Keep all divs flex-y.
   // Compact the HTML (no inter-tag whitespace) to avoid phantom text nodes.
   return [
-    `<div style="display:flex;flex-direction:column;width:100%;height:100%;padding:70px 80px;background:linear-gradient(135deg,${from} 0%,${to} 100%);color:#ffffff;font-family:'Inter',system-ui,-apple-system,sans-serif;">`,
+    `<div style="display:flex;flex-direction:column;width:100%;height:100%;padding:70px 80px;background:linear-gradient(135deg,${from} 0%,${to} 100%);color:#ffffff;font-family:${fontFamily};">`,
       `<div style="display:flex;align-items:center;font-size:28px;font-weight:600;opacity:0.95;letter-spacing:0.5px;">`,
         `<span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;background:${accent};color:${to};border-radius:8px;margin-right:14px;font-size:24px;font-weight:800;">M</span>`,
         `<span style="display:flex;">${escapeHtml(siteName)}</span>`,
@@ -76,13 +98,51 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env, request, w
   waitUntil(env.MD_STORE.put(key, md, { expirationTtl: 31_536_000 }));
 
   const meta = deriveMeta(md, key);
-  const html = buildOgHtml(meta.title, meta.description, key, meta.siteName);
+
+  // Detect CJK in any visible text and load a subset font if so. Without
+  // this, Satori falls back to a Latin-only sans and renders CJK chars
+  // as "NO GLYPH" tofu in the OG image — which is what users see in
+  // Slack/Telegram/iMessage previews even though the page itself works.
+  // Subset text for the CJK font — title/description/sitename plus the
+  // chrome strings that appear in the OG image.
+  const cjkText = [
+    meta.title,
+    meta.description,
+    meta.siteName,
+  ].join('');
+  const fonts: Array<{ name: string; data: ArrayBuffer; weight: number; style: 'normal' }> = [];
+  let fontFamily = "'Inter',system-ui,-apple-system,sans-serif";
+
+  if (hasCJK(cjkText)) {
+    // Load Inter (Latin only — handles URL/badge/digit chars in the OG
+    // chrome) AND Noto Sans TC (handles CJK in title/description). Satori
+    // falls back per-glyph through the font-family list, so listing Inter
+    // first means ASCII chars use Inter and CJK chars fall through to TC.
+    const interText = `md-share-kut.pages.dev/s/${key} interactive markdown M ${meta.siteName}`;
+    const [inter400, inter700, tc400, tc700] = await Promise.all([
+      loadCjkFontSubset(interText, 400, 'Inter'),
+      loadCjkFontSubset(interText, 700, 'Inter'),
+      loadCjkFontSubset(cjkText, 400, 'Noto Sans TC'),
+      loadCjkFontSubset(cjkText, 700, 'Noto Sans TC'),
+    ]);
+    if (inter400) fonts.push({ name: 'Inter', data: inter400, weight: 400, style: 'normal' });
+    if (inter700) fonts.push({ name: 'Inter', data: inter700, weight: 700, style: 'normal' });
+    if (tc400) fonts.push({ name: 'NotoSansTC', data: tc400, weight: 400, style: 'normal' });
+    if (tc700) fonts.push({ name: 'NotoSansTC', data: tc700, weight: 700, style: 'normal' });
+    if (fonts.some(f => f.name === 'NotoSansTC')) {
+      // Inter first for Latin chars, NotoSansTC fallback for CJK.
+      fontFamily = "'Inter','NotoSansTC',sans-serif";
+    }
+  }
+
+  const html = buildOgHtml(meta.title, meta.description, key, meta.siteName, fontFamily);
 
   // Edge cache: 1 day for PNG (titles rarely change)
   return new ImageResponse(html, {
     width: WIDTH,
     height: HEIGHT,
     format: 'png',
+    fonts: fonts.length > 0 ? fonts : undefined,
     headers: {
       'Cache-Control': 'public, max-age=86400, s-maxage=604800',
     },
