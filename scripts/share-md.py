@@ -27,6 +27,35 @@ def load_config() -> dict:
     return {"base_url": "https://md-share-kut.pages.dev"}
 
 
+def lint_local(md: str) -> list[str] | None:
+    """Run the local Node-based lint CLI on `md`. Returns:
+       - None if `node` is unavailable (graceful skip) — also prints a warning
+       - [] (empty list) if the markdown lints clean
+       - [errors...] if the lint failed
+    """
+    script = Path(__file__).parent / "md-lint.mjs"
+    if not script.exists():
+        return None  # bundle not built yet — skip silently (build-step issue, not user error)
+    try:
+        result = subprocess.run(
+            ["node", str(script), "-"],
+            input=md.encode("utf-8"),
+            capture_output=True,
+            timeout=15,
+        )
+    except FileNotFoundError:
+        print("(node not found on PATH — skipping markdown lint)", file=sys.stderr)
+        return None
+    except subprocess.TimeoutExpired:
+        print("(md-lint timed out — skipping)", file=sys.stderr)
+        return None
+    if result.returncode == 0:
+        return []
+    # exit 2 = lint errors on stderr; any other code = CLI bug, still surface stderr
+    errs = [ln for ln in result.stderr.decode("utf-8", errors="replace").splitlines() if ln.strip()]
+    return errs or [f"(md-lint exit {result.returncode} with no stderr)"]
+
+
 def encode_chunk(text: str) -> str:
     compressed = gzip.compress(text.encode("utf-8"))
     return base64.urlsafe_b64encode(compressed).rstrip(b"=").decode("ascii")
@@ -143,20 +172,17 @@ def shorten_url(
     md: str,
     *,
     update_key: str | None = None,
-    lint: bool = True,
 ) -> tuple[str | None, list[str] | None]:
     """POST markdown to /api/save and return (short_url, lint_errors).
 
     On success: returns (url, None).
-    On lint failure (422): returns (None, errors).
+    On lint failure (422): returns (None, errors) — defensive safety net; server does not lint.
     On other failure: returns (None, None).
     """
     endpoint = base_url.rstrip("/") + "/api/save"
     payload_obj: dict = {"markdown": md}
     if update_key is not None:
         payload_obj["key"] = update_key
-    if not lint:
-        payload_obj["lint"] = False
     payload = json.dumps(payload_obj).encode("utf-8")
     req = urllib.request.Request(
         endpoint,
@@ -221,7 +247,7 @@ def main():
     parser.add_argument("--always-short", action="store_true", help="always shorten, even for small content")
     parser.add_argument("--short-threshold", type=int, default=None, help="URL length threshold for auto-shortening (default: from config or 1024)")
     parser.add_argument("--update", metavar="URL_OR_KEY", help="overwrite an existing share (pass URL or 8-char key); implies --always-short")
-    parser.add_argument("--no-lint", action="store_true", help="bypass server-side markdown linting")
+    parser.add_argument("--no-lint", action="store_true", help="bypass local markdown linting")
     args = parser.parse_args()
 
     # Load config
@@ -242,6 +268,17 @@ def main():
     if not md:
         print("Error: no markdown input provided", file=sys.stderr)
         sys.exit(1)
+
+    # Local markdown lint (build-time, replaces server lint)
+    if not args.no_lint:
+        errs = lint_local(md)
+        if errs:  # non-empty list = real errors
+            print("Markdown failed lint checks:", file=sys.stderr)
+            for err in errs:
+                print(f"  • {err}", file=sys.stderr)
+            print("\nFix the issues or pass --no-lint to bypass.", file=sys.stderr)
+            sys.exit(2)
+        # errs is None (node missing) or [] (clean) → continue
 
     # --update implies always-shorten and disables --no-short
     update_key: str | None = None
@@ -268,7 +305,6 @@ def main():
                 short_url, lint_errors = shorten_url(
                     base_url, api_token, md,
                     update_key=update_key,
-                    lint=not args.no_lint,
                 )
 
     # Lint failure short-circuits everything

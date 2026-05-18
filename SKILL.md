@@ -1,6 +1,6 @@
 ---
 name: share--markdown
-description: Generate a shareable URL for markdown content. Encodes markdown (with mermaid charts, mind maps, gantt charts, interactive tables, pie/bar/line charts, code blocks, GFM tables, task lists) into a short URL backed by Cloudflare KV (or URL fragment for offline use). The viewer is a Cloudflare Pages SPA with system light/dark theme, OG/Twitter card metadata for rich link previews on social media and Telegram, a floating "Add to LLM" selection menu, server-side lint, and edit-existing support. Use whenever the user wants to share markdown, send a markdown link, make markdown viewable or shareable, render markdown for someone else, create a shareable URL for markdown, publish or preview a markdown file/snippet, give someone a link to a README or notes, update an existing share, or turn markdown into a pretty viewable page. Auto-splits long markdown across multiple URLs when needed.
+description: Generate a shareable URL for markdown content. Encodes markdown (with mermaid charts, mind maps, gantt charts, interactive tables, pie/bar/line charts, interactive multi-day maps, code blocks, GFM tables, task lists) into a short URL backed by Cloudflare KV (or URL fragment for offline use). The viewer is a Cloudflare Pages SPA with system light/dark theme, OG/Twitter card metadata for rich link previews on social media and Telegram, a floating "Add to LLM" selection menu, build-time lint, and edit-existing support. Use whenever the user wants to share markdown, send a markdown link, make markdown viewable or shareable, render markdown for someone else, create a shareable URL for markdown, publish or preview a markdown file/snippet, give someone a link to a README or notes, update an existing share, or turn markdown into a pretty viewable page. Auto-splits long markdown across multiple URLs when needed.
 ---
 
 # share--markdown
@@ -145,6 +145,31 @@ Renders an interactive D3-driven mind map (drag to pan, scroll to zoom, click no
 ```
 ````
 
+### Maps
+
+Interactive multi-day itinerary maps with color-coded routes per day. Routes are computed by OpenRouteService (driving / walking / cycling); if routing fails the map falls back to straight dashed lines between stops.
+
+````markdown
+```map
+height: 400              # optional, default 400
+center: [-122.0, 37.3]   # optional [lng, lat], auto-fit if omitted
+zoom: 12                 # optional
+days:
+  - color: "#3b82f6"
+    profile: driving-car        # driving-car | foot-walking | cycling-regular
+    stops:
+      - { lng: -122.41, lat: 37.78, label: "SFO" }
+      - { lng: -121.89, lat: 37.33, label: "San Jose" }
+  - color: "#ef4444"
+    profile: foot-walking
+    stops:
+      - { lng: -122.41, lat: 37.78, label: "Ferry Building" }
+      - { lng: -122.43, lat: 37.77, label: "Painted Ladies" }
+```
+````
+
+Markers are clickable (popup with `label`). Coordinates are `lng/lat` only — no place-name geocoding. Limits: ≤50 stops per day, ≤20 days per map.
+
 ### Mermaid + markmap → click for fullscreen
 
 Any rendered mermaid diagram or mind map is clickable to open a **fullscreen viewer** with pan/zoom (mouse drag + scroll wheel) and `+`/`−`/`0`/`Esc` keyboard shortcuts. Mind maps add a search box in the toolbar.
@@ -174,7 +199,7 @@ python3 $SCRIPT --update a1b2c3d4 README.md
 
 ## Lint pre-save
 
-The server runs lightweight regex checks on every save. CLI exits with code 2 and prints errors when lint fails:
+The `share-md.py` script invokes a local Node CLI (`scripts/md-lint.mjs`) before uploading. CLI exits with code 2 and prints errors when lint fails:
 
 - **Fenced code block balance** — unclosed ` ``` ` triples
 - **Mermaid blocks** — must start with a recognized diagram type; balanced `()` `[]` `{}`
@@ -272,7 +297,7 @@ Piped output (one URL per line, no prefix — clean for automation).
 | `--always-short` | Always shorten, even for tiny content |
 | `--short-threshold N` | URL length threshold for auto-shortening (default: 1024) |
 | `--update URL_OR_KEY` | Overwrite an existing share by URL or 8-char key (implies `--always-short`) |
-| `--no-lint` | Bypass server-side markdown linting |
+| `--no-lint` | Bypass local markdown linting |
 
 ## Config
 
@@ -320,11 +345,46 @@ chunks:     1
 url length: 2,565 chars
 ```
 
+## Rotating MapTiler / ORS keys
+
+Keys are stored as Cloudflare Pages secrets on the `md-share` project and served to the browser via `/api/keys` (cached 1 day at the edge). Both are referrer-restricted in their respective dashboards, so leakage is low-risk; rotate only on suspected abuse.
+
+**Rotate:**
+
+```bash
+TOKEN=$(grep '^access_token' ~/.cf/config.toml | sed 's/.*= "\([^"]*\)".*/\1/')
+ACCOUNT_ID=fbe46925529a77537b36114bed4e1ae1
+NEW_MAPTILER_KEY=...   # from MapTiler dashboard
+NEW_ORS_KEY=...        # from openrouteservice.org dashboard
+
+curl -sS -X PATCH \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"deployment_configs\":{\"production\":{\"env_vars\":{\"MAPTILER_KEY\":{\"type\":\"secret_text\",\"value\":\"$NEW_MAPTILER_KEY\"},\"ORS_KEY\":{\"type\":\"secret_text\",\"value\":\"$NEW_ORS_KEY\"}}},\"preview\":{\"env_vars\":{\"MAPTILER_KEY\":{\"type\":\"secret_text\",\"value\":\"$NEW_MAPTILER_KEY\"},\"ORS_KEY\":{\"type\":\"secret_text\",\"value\":\"$NEW_ORS_KEY\"}}}}}" \
+  "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/md-share"
+```
+
+**Purge the `/api/keys` edge cache** (so browsers pick up new keys within minutes instead of 24h):
+
+```bash
+# Get the zone id for pages.dev (one-time)
+ZONE_ID=$(curl -sS -H "Authorization: Bearer $TOKEN" "https://api.cloudflare.com/client/v4/zones?name=pages.dev" | python3 -c "import sys,json; print(json.load(sys.stdin)['result'][0]['id'])")
+
+# Purge the keys endpoint
+curl -sS -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"files":["https://md-share-kut.pages.dev/api/keys"]}' \
+  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/purge_cache"
+```
+
+Trigger a new deployment if env vars don't propagate (`gh workflow run ...` or push an empty commit).
+
 ## Troubleshooting
 
 **"markdown too large to chunk reasonably"** — content would need >100 parts. Consider splitting the document manually.
 
-**Lint failure** — server returns 422 with detailed errors. Fix or pass `--no-lint`.
+**Lint failure** — `share-md.py` runs `scripts/md-lint.mjs` locally before upload and exits with code 2. Fix the reported errors or pass `--no-lint`.
 
 **`--update <key>` fails** — key must be 8 lowercase hex characters; auth token must be valid; payload < 100KB.
 

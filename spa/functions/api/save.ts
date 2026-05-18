@@ -1,5 +1,3 @@
-import { lintMarkdown } from '../_lint';
-
 interface Env {
   MD_STORE: KVNamespace;
   SHARE_MD_TOKEN: string;
@@ -36,7 +34,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   // Parse body
-  let body: { markdown?: string; key?: string; lint?: boolean };
+  let body: { markdown?: string; key?: string };
   try {
     body = await request.json();
   } catch {
@@ -49,17 +47,6 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   }
   if (markdown.length > 100_000) {
     return new Response('Payload too large (max 100KB)', { status: 413 });
-  }
-
-  // Lint (default on; client passes lint:false to bypass)
-  if (body.lint !== false) {
-    const errors = lintMarkdown(markdown);
-    if (errors.length > 0) {
-      return Response.json(
-        { ok: false, errors, hint: 'Pass --no-lint to bypass.' },
-        { status: 422 }
-      );
-    }
   }
 
   // Determine storage key:
