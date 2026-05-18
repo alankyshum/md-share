@@ -1,3 +1,4 @@
+/// <reference path="../ambient.d.ts" />
 // Parse mermaid gantt syntax → frappe-gantt task array, then render.
 //
 // Supported mermaid gantt features:

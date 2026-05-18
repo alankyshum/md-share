@@ -253,7 +253,7 @@ function renderPie(parsed: ReturnType<typeof parseMermaidPie>, container: HTMLEl
   container.replaceWith(wrapper);
 
   const total = parsed.values.reduce((a, b) => a + b, 0);
-  new Chart(canvas, {
+  const pieCfg = {
     type: 'doughnut',
     data: {
       labels: parsed.labels,
@@ -272,7 +272,7 @@ function renderPie(parsed: ReturnType<typeof parseMermaidPie>, container: HTMLEl
         legend: { position: 'right' },
         tooltip: {
           callbacks: {
-            label(item) {
+            label(item: any) {
               const v = item.parsed as number;
               const pct = total > 0 ? ((v / total) * 100).toFixed(1) : '0';
               return `${item.label}: ${v.toLocaleString()} (${pct}%)`;
@@ -281,7 +281,10 @@ function renderPie(parsed: ReturnType<typeof parseMermaidPie>, container: HTMLEl
         },
       },
     },
-  });
+  };
+  new Chart(canvas, pieCfg as any);
+  (wrapper as any).__chartConfig = pieCfg;
+  (wrapper as any).__chartKind = 'mermaid-pie';
   return true;
 }
 
@@ -305,7 +308,7 @@ function renderXyChart(parsed: ReturnType<typeof parseMermaidXyChart>, container
 
   // Pick a primary type for the chart (use first series)
   const primary = parsed.series[0].type;
-  new Chart(canvas, {
+  const xyCfg = {
     type: primary as any,
     data: {
       labels: parsed.xCategories!,
@@ -325,7 +328,10 @@ function renderXyChart(parsed: ReturnType<typeof parseMermaidXyChart>, container
       },
       interaction: { mode: 'nearest', axis: 'x', intersect: false },
     },
-  });
+  };
+  new Chart(canvas, xyCfg as any);
+  (wrapper as any).__chartConfig = xyCfg;
+  (wrapper as any).__chartKind = 'mermaid-xy';
   return true;
 }
 
@@ -477,7 +483,7 @@ function renderEnhancedXyChart(
     ? 'bottom'
     : ext.legend.position as 'top' | 'bottom' | 'left' | 'right';
 
-  new Chart(canvas, {
+  const extCfg = {
     type: primary as any,
     data: { labels: xLabels, datasets: datasets as any },
     options: {
@@ -495,7 +501,10 @@ function renderEnhancedXyChart(
       scales,
       interaction: { mode: 'nearest', axis: 'x', intersect: false },
     } as any,
-  });
+  };
+  new Chart(canvas, extCfg);
+  (wrapper as any).__chartConfig = extCfg;
+  (wrapper as any).__chartKind = 'mermaid-xy-ext';
   return true;
 }
 
@@ -534,6 +543,8 @@ function renderJsonChart(jsonText: string, container: HTMLElement, ctx: ChartCon
   };
 
   new Chart(canvas, cfg);
+  (wrapper as any).__chartConfig = cfg;
+  (wrapper as any).__chartKind = 'json';
   return true;
 }
 

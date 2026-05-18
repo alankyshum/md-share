@@ -1,3 +1,4 @@
+/// <reference path="../ambient.d.ts" />
 // Enhance markdown-rendered <table> elements with Tabulator:
 // auto column type detection, sort, search, filter, hide columns,
 // drag-reorder columns, persistence (per-table localStorage).

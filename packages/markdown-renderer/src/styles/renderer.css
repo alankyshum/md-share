@@ -1,0 +1,136 @@
+/* Markdown renderer — interactive fence widgets. */
+
+/* Chart.js host */
+.chart-host {
+  margin: 1.5rem 0;
+}
+.chart-host .chart-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  text-align: center;
+}
+.chart-host .chart-canvas-wrap {
+  position: relative;
+  height: 360px;
+  width: 100%;
+}
+.chart-host .chart-canvas-wrap canvas {
+  max-width: 100%;
+}
+
+/* Maps */
+.custom-map {
+  margin: 1.5rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Markmap host */
+.markmap {
+  margin: 1.5rem 0;
+}
+.markmap svg {
+  width: 100%;
+  min-height: 320px;
+}
+
+/* Mermaid blocks (no extra sizing needed; mermaid renders responsive SVG) */
+div.mermaid {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+div.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Gantt host (frappe-gantt creates SVG of its own size) */
+.gantt-target {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+/* Tabulator tables */
+.tabulator {
+  margin: 1.5rem 0;
+}
+
+/* Fullscreen viewer (opt-in via enhance({fullscreen:true})) */
+.md-clickable {
+  cursor: zoom-in;
+  position: relative;
+}
+.md-clickable:hover::after {
+  content: '⛶';
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  pointer-events: none;
+  opacity: 0.85;
+}
+.md-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.98);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+}
+html[data-theme="dark"] .md-fullscreen-overlay {
+  background: rgba(20, 22, 26, 0.98);
+  color: #e6edf3;
+}
+.md-fs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+html[data-theme="dark"] .md-fs-toolbar { border-bottom-color: rgba(255, 255, 255, 0.1); }
+.md-fs-kind {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  font-weight: 600;
+}
+.md-fs-spacer { flex: 1; }
+.md-fs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 0.5rem;
+  background: transparent;
+  color: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+html[data-theme="dark"] .md-fs-btn { border-color: rgba(255, 255, 255, 0.15); }
+.md-fs-btn:hover { background: rgba(0, 0, 0, 0.06); }
+html[data-theme="dark"] .md-fs-btn:hover { background: rgba(255, 255, 255, 0.06); }
+.md-fs-btn.md-fs-close { border-color: transparent; }
+.md-fs-btn.md-fs-close:hover { background: rgba(220, 50, 50, 0.15); color: #d33; }
+.md-fs-viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.md-fs-viewport.md-fs-pan { cursor: grab; }
+.md-fs-viewport.md-fs-pan:active { cursor: grabbing; }
+.md-fs-viewport > svg,
+.md-fs-viewport > canvas,
+.md-fs-viewport > div {
+  display: block;
+}

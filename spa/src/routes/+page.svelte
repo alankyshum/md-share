@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { decodeFragment, encodeMarkdown } from '$lib/codec';
-  import { renderMarkdown, initMermaid } from '$lib/render';
+  import { renderMarkdown } from '$lib/render';
   import { watchTheme } from '$lib/theme';
   import { extractFrontmatter } from '$lib/frontmatter';
   import { computeStats } from '$lib/stats';
