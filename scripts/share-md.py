@@ -227,7 +227,11 @@ def parse_update_target(s: str) -> str:
     m = KEY_RE.search(s)
     if m:
         return m.group(1)
-    raise SystemExit(f"Error: --update value '{s}' doesn't contain a valid 8-char hex share key")
+    # Fallback: compute stable 8-char hex hash from any string
+    import hashlib
+    hashed = hashlib.sha256(s.encode("utf-8")).hexdigest()[:8]
+    print(f"(Mapping custom key '{s}' to stable 8-char hex key '{hashed}')", file=sys.stderr)
+    return hashed
 
 
 def main():
