@@ -1,0 +1,47 @@
+{
+  "name": "@alankyshum/md-share",
+  "version": "1.0.0",
+  "description": "TypeScript CLI to securely encrypt and share markdown files",
+  "license": "MIT",
+  "author": "Alan Shum",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alankyshum/md-share.git",
+    "directory": "packages/md-share-cli"
+  },
+  "keywords": [
+    "cli",
+    "markdown",
+    "share",
+    "encryption"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "bin": {
+    "md-share": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@alankyshum/share-crypto": "workspace:*",
+    "commander": "^12.1.0",
+    "js-yaml": "^4.1.0",
+    "pako": "^2.1.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/pako": "^2.0.3",
+    "tsup": "^8.0.2",
+    "vitest": "^3.0.5"
+  }
+}
