@@ -9,6 +9,36 @@ export interface DerivedMeta {
   siteName: string;
 }
 
+export interface ShareJson {
+  v: number;
+  title: string;
+  description: string;
+  content: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function parseShareJson(jsonStr: string): ShareJson {
+  const data = JSON.parse(jsonStr);
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid JSON structure');
+  }
+  if (data.v !== 1) {
+    throw new Error(`Unsupported share version: ${data.v}`);
+  }
+  if (typeof data.content !== 'string') {
+    throw new Error('Missing or invalid content field');
+  }
+  return {
+    v: data.v,
+    title: typeof data.title === 'string' ? data.title : '',
+    description: typeof data.description === 'string' ? data.description : '',
+    content: data.content,
+    created_at: typeof data.created_at === 'string' ? data.created_at : undefined,
+    updated_at: typeof data.updated_at === 'string' ? data.updated_at : undefined,
+  };
+}
+
 /** Strip YAML frontmatter and return {fm, body}. */
 export function splitFrontmatter(md: string): { fm: Record<string, string>; body: string } {
   const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
@@ -73,19 +103,37 @@ export function firstParagraph(body: string): string {
 }
 
 export function deriveMeta(md: string, key: string): DerivedMeta {
-  const { fm, body } = splitFrontmatter(md);
-  const title =
+  let title = '';
+  let description = '';
+  let finalMarkdown = md;
+
+  // Check if it is a JSON-backed share
+  if (md.trim().startsWith('{')) {
+    try {
+      const share = parseShareJson(md);
+      title = share.title;
+      description = share.description;
+      finalMarkdown = share.content;
+    } catch {
+      // Not a valid share JSON, treat as raw markdown
+    }
+  }
+
+  const { fm, body } = splitFrontmatter(finalMarkdown);
+  const derivedTitle =
+    title ||
     fm.title ||
     firstHeading(body) ||
     `Shared note (${key})`;
-  const description =
+  const derivedDescription =
+    description ||
     fm.description ||
     fm.summary ||
     firstParagraph(body) ||
     `A markdown note shared via ${SITE_NAME}.`;
   return {
-    title: title.slice(0, 120),
-    description: description.slice(0, 300),
+    title: derivedTitle.slice(0, 120),
+    description: derivedDescription.slice(0, 300),
     siteName: SITE_NAME,
   };
 }

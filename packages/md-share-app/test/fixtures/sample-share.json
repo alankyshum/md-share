@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "title": "Sample Plaintext Title",
+  "description": "This is a sample plaintext description from the fixture.",
+  "content": "# Sample Plaintext Title\n\nThis is a sample markdown share body with some interactive features like a table.\n\n| Feature | Status |\n|---|---|\n| Standard Markdown | Works |\n| Interactive Charts | Works |\n",
+  "created_at": "2026-05-25T21:00:00Z",
+  "updated_at": "2026-05-25T21:00:00Z"
+}

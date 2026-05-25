@@ -1,7 +1,3 @@
 name = "md-share"
 compatibility_date = "2026-05-01"
 pages_build_output_dir = "build"
-
-[[kv_namespaces]]
-binding = "MD_STORE"
-id = "f7408613ed424a37bd879b19a190d32a"

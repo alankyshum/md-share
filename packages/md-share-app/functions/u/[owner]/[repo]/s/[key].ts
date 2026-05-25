@@ -1,11 +1,8 @@
-import { deriveMeta } from '../_meta';
+import { deriveMeta, parseShareJson } from '../../../../_meta';
 
 interface Env {
-  MD_STORE: KVNamespace;
   ASSETS: Fetcher;
 }
-
-const ONE_YEAR_SECONDS = 31_536_000;
 
 function escapeHtml(s: string): string {
   return s
@@ -16,9 +13,11 @@ function escapeHtml(s: string): string {
     .replace(/>/g, '&gt;');
 }
 
-function buildMetaTags(meta: { title: string; description: string; siteName: string },
-                       url: string,
-                       imageUrl: string): string {
+function buildMetaTags(
+  meta: { title: string; description: string; siteName: string },
+  url: string,
+  imageUrl: string
+): string {
   const t = escapeHtml(meta.title);
   const d = escapeHtml(meta.description);
   const u = escapeHtml(url);
@@ -43,24 +42,39 @@ function buildMetaTags(meta: { title: string; description: string; siteName: str
   ].join('\n  ');
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ request, env, params, waitUntil }) => {
+export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
+  const owner = params.owner as string;
+  const repo = params.repo as string;
   const key = params.key as string;
-  const md = await env.MD_STORE.get(key);
 
-  if (md === null) {
+  if (!owner || !repo || !key || !/^[0-9a-f]{8,64}$/i.test(key)) {
+    return new Response('Invalid request parameters', { status: 400 });
+  }
+
+  const prefix = key.slice(0, 2);
+  const ghUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/shares/${prefix}/${key}.json`;
+
+  const ghResponse = await fetch(ghUrl);
+  if (ghResponse.status === 404) {
     return new Response(
       '<!doctype html><html><head><title>Not found</title></head><body><h1>Snippet not found or expired</h1></body></html>',
       { status: 404, headers: { 'Content-Type': 'text/html' } }
     );
   }
 
-  // Slide TTL: refresh expiration on each access so unread shares prune after 1y of inactivity
-  waitUntil(env.MD_STORE.put(key, md, { expirationTtl: ONE_YEAR_SECONDS }));
+  if (!ghResponse.ok) {
+    return new Response(`Failed to fetch from GitHub: ${ghResponse.statusText}`, { status: ghResponse.status });
+  }
 
-  // Compute the *new* expiration timestamp (we just refreshed it, so it's now + 1y)
-  const expiresAt = new Date(Date.now() + ONE_YEAR_SECONDS * 1000).toISOString();
+  const jsonText = await ghResponse.text();
+  let share;
+  try {
+    share = parseShareJson(jsonText);
+  } catch (err) {
+    return new Response(`Invalid share format: ${err instanceof Error ? err.message : String(err)}`, { status: 500 });
+  }
 
-  // Fetch the SPA index.html (request without Accept-Encoding to avoid compressed response)
+  // Fetch the SPA index.html
   const indexUrl = new URL('/', request.url);
   const indexRequest = new Request(indexUrl.toString(), {
     headers: { 'Accept-Encoding': 'identity' },
@@ -68,26 +82,26 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params, w
   const indexResponse = await env.ASSETS.fetch(indexRequest);
   let html = await indexResponse.text();
 
-  // Derive title + description for social sharing previews
+  // Derive metadata from the share (which is JSON-backed structure)
   const reqUrl = new URL(request.url);
-  const meta = deriveMeta(md, key);
-  const shareUrl = `${reqUrl.origin}/s/${key}`;
-  const imageUrl = `${reqUrl.origin}/og/${key}.png`;
+  const meta = deriveMeta(jsonText, key);
+  const shareUrl = `${reqUrl.origin}/u/${owner}/${repo}/s/${key}`;
+  const imageUrl = `${reqUrl.origin}/u/${owner}/${repo}/og/${key}.png`;
   const metaTags = buildMetaTags(meta, shareUrl, imageUrl);
 
-  // Strip the SPA's default <title> so our injected one wins
+  // Strip the SPA's default <title>
   html = html.replace(/<title>[^<]*<\/title>/i, '');
 
   // Inject meta tags + inline markdown + share metadata before </head>
   const inlineScript = [
     `<script>`,
-    `window.__MD_INLINE = ${JSON.stringify(md)};`,
+    `window.__MD_INLINE = ${JSON.stringify(share.content)};`,
     `window.__MD_META = ${JSON.stringify({
       key,
-      expiresAt,
-      ttlMode: 'sliding',
-      ttlSeconds: ONE_YEAR_SECONDS,
-      sizeBytes: new TextEncoder().encode(md).length,
+      owner,
+      repo,
+      ttlMode: 'permanent',
+      sizeBytes: new TextEncoder().encode(share.content).length,
     })};`,
     `</script>`,
   ].join('');
@@ -97,6 +111,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params, w
     status: indexResponse.status,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=60, s-maxage=60',
     },
   });
 };
