@@ -1,6 +1,6 @@
 {
   "name": "@alankyshum/md-share",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TypeScript CLI to securely encrypt and share markdown files",
   "license": "MIT",
   "author": "Alan Shum",
@@ -40,7 +40,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@alankyshum/share-crypto": "workspace:*",
+    "@alankyshum/share-crypto": "^1.0.0",
     "commander": "^12.1.0",
     "js-yaml": "^4.1.0",
     "pako": "^2.1.0",

@@ -67,10 +67,10 @@ importers:
   packages/md-share-app:
     dependencies:
       '@alankyshum/markdown-renderer':
-        specifier: workspace:*
+        specifier: ^1.0.1
         version: link:../markdown-renderer
       '@alankyshum/share-crypto':
-        specifier: workspace:*
+        specifier: ^1.0.0
         version: link:../share-crypto
       chart.js:
         specifier: ^4.5.1
@@ -158,7 +158,7 @@ importers:
   packages/md-share-cli:
     dependencies:
       '@alankyshum/share-crypto':
-        specifier: workspace:*
+        specifier: ^1.0.0
         version: link:../share-crypto
       commander:
         specifier: ^12.1.0

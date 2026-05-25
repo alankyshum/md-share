@@ -1,6 +1,6 @@
 {
   "name": "@alankyshum/md-share-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SvelteKit SPA viewer for encrypted markdown shares with dynamic OG previews",
   "license": "MIT",
   "author": "Alan Shum",
@@ -44,8 +44,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@alankyshum/markdown-renderer": "workspace:*",
-    "@alankyshum/share-crypto": "workspace:*",
+    "@alankyshum/markdown-renderer": "^1.0.1",
+    "@alankyshum/share-crypto": "^1.0.0",
     "chart.js": "^4.5.1",
     "chartjs-plugin-annotation": "^3.1.0",
     "frappe-gantt": "^1.2.2",
