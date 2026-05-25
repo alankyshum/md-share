@@ -9,6 +9,10 @@
     "url": "git+https://github.com/alankyshum/md-share.git",
     "directory": "packages/md-share-cli"
   },
+  "homepage": "https://github.com/alankyshum/md-share#readme",
+  "bugs": {
+    "url": "https://github.com/alankyshum/md-share/issues"
+  },
   "keywords": [
     "cli",
     "markdown",
@@ -25,8 +29,12 @@
   "files": [
     "dist",
     "README.md",
+    "LICENSE",
     "package.json"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run"

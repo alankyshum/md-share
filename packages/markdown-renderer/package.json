@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/alankyshum/md-share/issues"
   },
-  "homepage": "https://github.com/alankyshum/md-share/tree/master/packages/markdown-renderer#readme",
+  "homepage": "https://github.com/alankyshum/md-share#readme",
   "keywords": [
     "markdown",
     "renderer",
@@ -29,6 +29,7 @@
   "files": [
     "dist",
     "README.md",
+    "LICENSE",
     "package.json"
   ],
   "sideEffects": [

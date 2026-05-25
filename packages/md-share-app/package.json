@@ -1,7 +1,40 @@
 {
   "name": "@alankyshum/md-share-app",
-  "version": "0.0.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "SvelteKit SPA viewer for encrypted markdown shares with dynamic OG previews",
+  "license": "MIT",
+  "author": "Alan Shum",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alankyshum/md-share.git",
+    "directory": "packages/md-share-app"
+  },
+  "homepage": "https://github.com/alankyshum/md-share#readme",
+  "bugs": {
+    "url": "https://github.com/alankyshum/md-share/issues"
+  },
+  "keywords": [
+    "markdown",
+    "share",
+    "encryption",
+    "sveltekit",
+    "cloudflare-pages"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "functions",
+    "static",
+    "package.json",
+    "svelte.config.js",
+    "vite.config.ts",
+    "wrangler.toml",
+    "README.md",
+    "LICENSE",
+    "tsconfig.json"
+  ],
   "type": "module",
   "scripts": {
     "prebuild": "node ./scripts/write-build-info.mjs",
