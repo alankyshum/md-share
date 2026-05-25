@@ -9,6 +9,7 @@
   import Frontmatter from '$lib/Frontmatter.svelte';
   import FullscreenViewer from '$lib/FullscreenViewer.svelte';
   import { installSelectionMenu } from '$lib/selection-menu';
+  import { decryptShare, base64UrlToBytes } from '@alankyshum/share-crypto';
 
   let mode: 'render' | 'loading' | 'error' = $state('loading');
   let errorMsg = $state('');
@@ -82,13 +83,41 @@
       }
     });
 
-    // Primary: server-injected inline markdown from Pages Function
-    if (typeof window !== 'undefined' && window.__MD_INLINE) {
-      const markdown = window.__MD_INLINE;
-      rawMarkdown = markdown;
-      part = null;
-      mode = 'render';
-      queueMicrotask(() => doRender(markdown, isDark));
+    // Primary: server-injected encrypted markdown from Pages Function
+    if (typeof window !== 'undefined' && window.__MD_ENCRYPTED) {
+      const enc = window.__MD_ENCRYPTED;
+      const hash = window.location.hash;
+      const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+      const kParam = params.get('k');
+
+      if (!kParam) {
+        errorMsg = 'Decryption failed — this URL is missing or has an invalid key';
+        mode = 'error';
+        return;
+      }
+
+      // We run decryption asynchronously, showing the loading state
+      mode = 'loading';
+      decryptShare(base64UrlToBytes(enc.iv), base64UrlToBytes(enc.ct), base64UrlToBytes(kParam))
+        .then((decrypted) => {
+          window.__MD_META = {
+            key: enc.key,
+            owner: enc.owner,
+            repo: enc.repo,
+            ttlMode: 'permanent',
+            sizeBytes: new TextEncoder().encode(decrypted).length,
+            expiresAt: '',
+            ttlSeconds: 0,
+          };
+          rawMarkdown = decrypted;
+          part = null;
+          mode = 'render';
+          queueMicrotask(() => doRender(decrypted, isDark));
+        })
+        .catch(() => {
+          errorMsg = 'Decryption failed — this URL is missing or has an invalid key';
+          mode = 'error';
+        });
       return;
     }
 
@@ -142,13 +171,21 @@
     </div>
   </div>
   <FullscreenViewer bind:open={viewerOpen} kind={viewerKind} sourceEl={viewerSource} onClose={closeViewer} />
+{:else if mode === 'loading'}
+  <div class="max-w-2xl mx-auto p-12 text-center">
+    <p style="color:var(--muted)">Decrypting...</p>
+  </div>
 {:else if mode === 'error'}
   <div class="max-w-2xl mx-auto p-12 text-center">
-    <h1 class="text-2xl font-bold mb-4">Couldn't decode this link</h1>
-    <p class="mb-6" style="color:var(--muted)">{errorMsg}</p>
-    <p class="mb-6">The URL may be truncated or corrupted.</p>
-    <a href="/" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 cursor-pointer">
-      Back to home
-    </a>
+    {#if errorMsg === 'Decryption failed — this URL is missing or has an invalid key'}
+      <p style="color:var(--muted)">Decryption failed — this URL is missing or has an invalid key</p>
+    {:else}
+      <h1 class="text-2xl font-bold mb-4">Couldn't decode this link</h1>
+      <p class="mb-6" style="color:var(--muted)">{errorMsg}</p>
+      <p class="mb-6">The URL may be truncated or corrupted.</p>
+      <a href="/" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 cursor-pointer">
+        Back to home
+      </a>
+    {/if}
   </div>
 {/if}

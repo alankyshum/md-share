@@ -23,9 +23,19 @@ declare global {
     sizeBytes: number;
   }
 
+  interface MdShareEncrypted {
+    alg: 'AES-256-GCM';
+    iv: string; // base64url encoded
+    ct: string; // base64url encoded
+    owner: string;
+    repo: string;
+    key: string;
+  }
+
   interface Window {
     __MD_INLINE?: string;
     __MD_META?: MdShareMeta;
+    __MD_ENCRYPTED?: MdShareEncrypted;
   }
 }
 

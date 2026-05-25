@@ -13,7 +13,9 @@ export interface ShareJson {
   v: number;
   title: string;
   description: string;
-  content: string;
+  alg: 'AES-256-GCM';
+  iv: string;
+  ct: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -23,17 +25,28 @@ export function parseShareJson(jsonStr: string): ShareJson {
   if (!data || typeof data !== 'object') {
     throw new Error('Invalid JSON structure');
   }
+  if ('content' in data) {
+    throw new Error('Transitional contamination guard: JSON contains raw "content" field');
+  }
   if (data.v !== 1) {
     throw new Error(`Unsupported share version: ${data.v}`);
   }
-  if (typeof data.content !== 'string') {
-    throw new Error('Missing or invalid content field');
+  if (data.alg !== 'AES-256-GCM') {
+    throw new Error(`Unsupported or missing encryption algorithm: ${data.alg}`);
+  }
+  if (typeof data.iv !== 'string' || !data.iv) {
+    throw new Error('Missing or invalid iv field');
+  }
+  if (typeof data.ct !== 'string' || !data.ct) {
+    throw new Error('Missing or invalid ct field');
   }
   return {
     v: data.v,
     title: typeof data.title === 'string' ? data.title : '',
     description: typeof data.description === 'string' ? data.description : '',
-    content: data.content,
+    alg: 'AES-256-GCM',
+    iv: data.iv,
+    ct: data.ct,
     created_at: typeof data.created_at === 'string' ? data.created_at : undefined,
     updated_at: typeof data.updated_at === 'string' ? data.updated_at : undefined,
   };
@@ -113,7 +126,7 @@ export function deriveMeta(md: string, key: string): DerivedMeta {
       const share = parseShareJson(md);
       title = share.title;
       description = share.description;
-      finalMarkdown = share.content;
+      finalMarkdown = '';
     } catch {
       // Not a valid share JSON, treat as raw markdown
     }

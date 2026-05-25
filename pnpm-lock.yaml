@@ -69,6 +69,9 @@ importers:
       '@alankyshum/markdown-renderer':
         specifier: workspace:*
         version: link:../markdown-renderer
+      '@alankyshum/share-crypto':
+        specifier: workspace:*
+        version: link:../share-crypto
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
@@ -148,6 +151,22 @@ importers:
       vite:
         specifier: ^6.3.3
         version: 6.4.2(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0)
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.4(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0)
+
+  packages/share-crypto:
+    dependencies:
+      pako:
+        specifier: ^2.1.0
+        version: 2.1.0
+    devDependencies:
+      '@types/pako':
+        specifier: ^2.0.3
+        version: 2.0.4
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(typescript@5.9.3)(yaml@2.9.0)
       vitest:
         specifier: ^3.0.5
         version: 3.2.4(@types/node@20.19.41)(jiti@2.7.0)(lightningcss@1.32.0)(yaml@2.9.0)

@@ -108,6 +108,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ params }) => {
     return new Response(`Invalid share format: ${err instanceof Error ? err.message : String(err)}`, { status: 500 });
   }
 
+  // Code confirmation: The OG route only accesses plaintext title/description.
+  // It cannot access the encrypted body content (ct/iv) and has no decryption key (#k= is fragment-only and browser-only).
   const meta = deriveMeta(jsonText, key);
 
   const cjkText = [

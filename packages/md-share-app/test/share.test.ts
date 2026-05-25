@@ -1,30 +1,36 @@
 import { describe, it, expect } from 'vitest';
 import { parseShareJson, deriveMeta } from '../functions/_meta';
+import { generateKey, encryptShare, decryptShare, bytesToBase64Url, serializeEncryptedShare } from '@alankyshum/share-crypto';
 import sampleShare from './fixtures/sample-share.json';
 
-// Helper function to simulate GH URL construction as requested by deliverables
 function constructGhUrl(owner: string, repo: string, key: string): string {
   const prefix = key.slice(0, 2);
   return `https://raw.githubusercontent.com/${owner}/${repo}/main/shares/${prefix}/${key}.json`;
 }
 
-describe('Phase 1.1 - Storage, Routing and Meta Tests', () => {
-  it('should parse plaintext share JSON correctly', () => {
+describe('Phase 2 - Encryption layer & meta tests', () => {
+  it('should parse encrypted share JSON correctly', () => {
     const jsonStr = JSON.stringify(sampleShare);
     const parsed = parseShareJson(jsonStr);
 
     expect(parsed.v).toBe(1);
-    expect(parsed.title).toBe('Sample Plaintext Title');
-    expect(parsed.description).toBe('This is a sample plaintext description from the fixture.');
-    expect(parsed.content).toContain('# Sample Plaintext Title');
+    expect(parsed.alg).toBe('AES-256-GCM');
+    expect(parsed.title).toBe('Sample Encrypted Title');
+    expect(parsed.description).toBe('This is a sample encrypted description from the fixture schema.');
+    expect(parsed.iv).toBe('placeholder_iv_base64url');
+    expect(parsed.ct).toBe('placeholder_ct_base64url');
   });
 
-  it('should throw an error for invalid share JSON versions or structures', () => {
-    const invalidVersion = JSON.stringify({ ...sampleShare, v: 2 });
-    expect(() => parseShareJson(invalidVersion)).toThrow('Unsupported share version: 2');
-
-    const missingContent = JSON.stringify({ v: 1, title: 'No content' });
-    expect(() => parseShareJson(missingContent)).toThrow('Missing or invalid content field');
+  it('should reject a JSON with content field (transitional legacy guard)', () => {
+    const badJson = {
+      v: 1,
+      title: 'Legacy',
+      description: 'Legacy share',
+      content: '# Plaintext markdown'
+    };
+    expect(() => parseShareJson(JSON.stringify(badJson))).toThrow(
+      'Transitional contamination guard: JSON contains raw "content" field'
+    );
   });
 
   it('should construct correct GitHub Raw URL matching convention', () => {
@@ -36,25 +42,50 @@ describe('Phase 1.1 - Storage, Routing and Meta Tests', () => {
     expect(url).toBe('https://raw.githubusercontent.com/alankyshum/md-share-repo/main/shares/ab/abcdef123456.json');
   });
 
-  it('should extract OG meta from plaintext share correctly', () => {
+  it('should extract OG meta from encrypted share correctly', () => {
     const jsonStr = JSON.stringify(sampleShare);
     const meta = deriveMeta(jsonStr, 'abcdef123456');
 
-    expect(meta.title).toBe('Sample Plaintext Title');
-    expect(meta.description).toBe('This is a sample plaintext description from the fixture.');
+    expect(meta.title).toBe('Sample Encrypted Title');
+    expect(meta.description).toBe('This is a sample encrypted description from the fixture schema.');
     expect(meta.siteName).toBe('md-share');
   });
 
-  it('should fall back to deriving title/description from content when they are missing in JSON share', () => {
-    const rawJson = {
+  it('should fall back to deriving title/description from key/siteName when JSON has empty title/description', () => {
+    const emptyJson = {
       v: 1,
+      alg: 'AES-256-GCM',
       title: '',
       description: '',
-      content: '# Dynamic Heading\n\nThis is the dynamic paragraph description.'
+      iv: 'iv_str',
+      ct: 'ct_str',
     };
-    const meta = deriveMeta(JSON.stringify(rawJson), 'key123');
+    const meta = deriveMeta(JSON.stringify(emptyJson), 'key123');
 
-    expect(meta.title).toBe('Dynamic Heading');
-    expect(meta.description).toBe('This is the dynamic paragraph description.');
+    expect(meta.title).toBe('Shared note (key123)');
+    expect(meta.description).toBe('A markdown note shared via md-share.');
+  });
+
+  it('should round-trip encrypt and decrypt with the crypto module', async () => {
+    const key = await generateKey();
+    const markdown = '# Live Encrypted Document\n\nThis is generated live in the test environment!';
+
+    const { iv, ct } = await encryptShare(markdown, key);
+    const decrypted = await decryptShare(iv, ct, key);
+
+    expect(decrypted).toBe(markdown);
+
+    const serialized = serializeEncryptedShare({
+      title: 'Live Encrypted Title',
+      description: 'Live Encrypted Desc',
+      iv,
+      ct,
+    });
+
+    const parsed = parseShareJson(JSON.stringify(serialized));
+    expect(parsed.title).toBe('Live Encrypted Title');
+    expect(parsed.description).toBe('Live Encrypted Desc');
+    expect(parsed.iv).toBe(bytesToBase64Url(iv));
+    expect(parsed.ct).toBe(bytesToBase64Url(ct));
   });
 });

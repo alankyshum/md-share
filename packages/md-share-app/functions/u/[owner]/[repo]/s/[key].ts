@@ -92,16 +92,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   // Strip the SPA's default <title>
   html = html.replace(/<title>[^<]*<\/title>/i, '');
 
-  // Inject meta tags + inline markdown + share metadata before </head>
+  // Inject meta tags + encrypted metadata before </head>
   const inlineScript = [
     `<script>`,
-    `window.__MD_INLINE = ${JSON.stringify(share.content)};`,
-    `window.__MD_META = ${JSON.stringify({
-      key,
+    `window.__MD_ENCRYPTED = ${JSON.stringify({
+      alg: share.alg,
+      iv: share.iv,
+      ct: share.ct,
       owner,
       repo,
-      ttlMode: 'permanent',
-      sizeBytes: new TextEncoder().encode(share.content).length,
+      key,
     })};`,
     `</script>`,
   ].join('');
@@ -111,7 +111,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
     status: indexResponse.status,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=60, s-maxage=60',
+      'Cache-Control': 'public, max-age=300, s-maxage=300',
+      'Vary': 'Accept-Encoding',
     },
   });
 };
