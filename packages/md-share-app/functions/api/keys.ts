@@ -11,8 +11,8 @@ interface Env {
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   return new Response(
     JSON.stringify({
-      maptiler: env.MAPTILER_KEY,
-      ors: env.ORS_KEY,
+      maptiler: env.MAPTILER_KEY || "",
+      ors: env.ORS_KEY || "",
     }),
     {
       headers: {

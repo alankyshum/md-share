@@ -25,7 +25,8 @@ program
 program
   .command('init')
   .description('Initialize configuration and storage repo')
-  .option('--self-host', 'Cloudflare Pages provisioning (Phase 4 placeholder)')
+  .option('--self-host', 'Provision your own Cloudflare Pages self-hosted project')
+  .option('--project-name <name>', 'Override the randomly generated Cloudflare Pages project name')
   .option('--dry-run', 'Print the initialization plan without modifying configuration or repos')
   .option('--storage-name <name>', 'Override default storage repository name (md-share--cms)')
   .action(async (options) => {

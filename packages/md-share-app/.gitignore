@@ -3,6 +3,7 @@ node_modules/
 .svelte-kit/
 build/
 dist/
+functions/_build-info.ts
 
 # Cloudflare Wrangler local state
 .wrangler/
