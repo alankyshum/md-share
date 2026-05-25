@@ -1,7 +1,9 @@
 {
-  "name": "md-share",
+  "name": "@alankyshum/md-share-app",
   "version": "1.0.0",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -9,7 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@local/markdown-renderer": "file:../packages/markdown-renderer",
+    "@alankyshum/markdown-renderer": "workspace:*",
     "chart.js": "^4.5.1",
     "chartjs-plugin-annotation": "^3.1.0",
     "frappe-gantt": "^1.2.2",

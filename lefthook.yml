@@ -1,0 +1,4 @@
+post-commit:
+  commands:
+    publish-on-bump:
+      run: bash bin/publish-on-version-bump.sh

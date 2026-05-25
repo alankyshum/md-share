@@ -1,0 +1,21 @@
+{
+  "name": "@alankyshum/md-share-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone publicly-installable, encrypted monorepo alankyshum/md-share",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "changeset": "changeset",
+    "version": "changeset version"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5"
+  },
+  "onlyBuiltDependencies": [
+    "esbuild"
+  ]
+}

@@ -1,2 +1,25 @@
-scripts/md-lint/node_modules/
-scripts/md-lint/dist/
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+.svelte-kit/
+**/.svelte-kit/
+.wrangler/
+**/.wrangler/
+
+# Local config and secrets
+config.json
+**/config.json
+.env
+.env.*
+
+# Logs
+*.log
+**/logs/
+
+# OS files
+.DS_Store
+Thumbs.db

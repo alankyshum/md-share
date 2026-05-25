@@ -1,4 +1,4 @@
-# @local/markdown-renderer
+# @alankyshum/markdown-renderer
 
 Framework-agnostic markdown renderer used by the share-md SPA and alanshum-web blog.
 
@@ -11,11 +11,11 @@ Framework-agnostic markdown renderer used by the share-md SPA and alanshum-web b
 
 ```ts
 // Server (Node-safe)
-import { markdownToHtml } from '@local/markdown-renderer/server';
+import { markdownToHtml } from '@alankyshum/markdown-renderer/server';
 const html = await markdownToHtml(md, { highlighter, headingSlugs });
 
 // Client hydration
-import { enhance } from '@local/markdown-renderer/client';
+import { enhance } from '@alankyshum/markdown-renderer/client';
 await enhance(targetElement, { dark: true });
 ```
 

@@ -1,5 +1,5 @@
-import { markdownToHtml } from '@local/markdown-renderer/server';
-import { enhance } from '@local/markdown-renderer/client';
+import { markdownToHtml } from '@alankyshum/markdown-renderer/server';
+import { enhance } from '@alankyshum/markdown-renderer/client';
 import hljs from 'highlight.js';
 
 /** Compute (1-indexed) line numbers for top-level marked tokens by walking
@@ -79,4 +79,4 @@ export async function renderMarkdown(
   await enhance(target, { dark });
 }
 
-export { initMermaid } from '@local/markdown-renderer/client/mermaid';
+export { initMermaid } from '@alankyshum/markdown-renderer/client/mermaid';

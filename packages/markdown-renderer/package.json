@@ -1,19 +1,51 @@
 {
-  "name": "@local/markdown-renderer",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@alankyshum/markdown-renderer",
+  "version": "1.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
+  "scripts": {
+    "build": "tsup"
+  },
   "exports": {
-    ".": { "import": "./src/index.ts" },
-    "./server": { "import": "./src/server.ts" },
-    "./client": { "import": "./src/client/index.ts" },
-    "./client/maps": { "import": "./src/client/maps.ts" },
-    "./client/charts": { "import": "./src/client/charts.ts" },
-    "./client/gantt": { "import": "./src/client/gantt.ts" },
-    "./client/tables": { "import": "./src/client/tables.ts" },
-    "./client/markmaps": { "import": "./src/client/markmaps.ts" },
-    "./client/mermaid": { "import": "./src/client/mermaid-init.ts" },
-    "./styles/renderer.css": "./src/styles/renderer.css"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client/index.js",
+      "types": "./dist/client/index.d.ts"
+    },
+    "./client/maps": {
+      "import": "./dist/client/maps.js",
+      "types": "./dist/client/maps.d.ts"
+    },
+    "./client/charts": {
+      "import": "./dist/client/charts.js",
+      "types": "./dist/client/charts.d.ts"
+    },
+    "./client/gantt": {
+      "import": "./dist/client/gantt.js",
+      "types": "./dist/client/gantt.d.ts"
+    },
+    "./client/tables": {
+      "import": "./dist/client/tables.js",
+      "types": "./dist/client/tables.d.ts"
+    },
+    "./client/markmaps": {
+      "import": "./dist/client/markmaps.js",
+      "types": "./dist/client/markmaps.d.ts"
+    },
+    "./client/mermaid": {
+      "import": "./dist/client/mermaid-init.js",
+      "types": "./dist/client/mermaid-init.d.ts"
+    },
+    "./styles/renderer.css": "./dist/styles/renderer.css"
   },
   "peerDependencies": {
     "marked": "^15.0.0",
@@ -24,7 +56,12 @@
     "maplibre-gl": "^4.0.0",
     "js-yaml": "^4.0.0",
     "chart.js": "*",
+    "chartjs-plugin-annotation": "*",
     "frappe-gantt": "*",
     "tabulator-tables": "*"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "tsup": "^8.0.2"
   }
 }
