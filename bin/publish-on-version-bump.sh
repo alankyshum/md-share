@@ -54,7 +54,27 @@ find packages -name package.json -not -path '*/node_modules/*' | while read -r p
     }
   ")
 
+  # Get private status in HEAD
+  is_private=$(git show HEAD:"$pkg_json" | node -e "
+    try {
+      const data = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+      console.log(data.private || false);
+    } catch (e) {
+      console.log(false);
+    }
+  ")
+
   if [ -n "$current_version" ] && [ "$current_version" != "$prev_version" ]; then
+    if [ "$is_private" = "true" ]; then
+      echo "Skipped $pkg_name (private package)"
+      continue
+    fi
+
+    if [ -z "$prev_version" ]; then
+      echo "Skipped $pkg_name (new package, previous version empty)"
+      continue
+    fi
+
     echo "Detected version bump for $pkg_name: $prev_version -> $current_version"
     
     if [ "$DRY_RUN" = true ]; then
@@ -63,19 +83,7 @@ find packages -name package.json -not -path '*/node_modules/*' | while read -r p
       echo "Publishing $pkg_name@$current_version to npm..."
       (
         cd "$pkg_dir"
-        is_private=$(node -e "
-          try {
-            const data = JSON.parse(require('fs').readFileSync('package.json', 'utf-8'));
-            console.log(data.private || false);
-          } catch (e) {
-            console.log(false);
-          }
-        ")
-        if [ "$is_private" = "true" ]; then
-          echo "$pkg_name is private, skipping publish."
-        else
-          npm publish --access public
-        fi
+        npm publish --access public
       )
     fi
   fi

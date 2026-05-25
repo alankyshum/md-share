@@ -13,6 +13,7 @@
   "devDependencies": {
     "@changesets/cli": "^2.27.1",
     "@types/node": "^20.12.7",
+    "lefthook": "^1.7.0",
     "typescript": "^5.4.5"
   },
   "onlyBuiltDependencies": [

@@ -1,9 +1,39 @@
 {
   "name": "@alankyshum/markdown-renderer",
   "version": "1.0.0",
+  "description": "Framework-agnostic markdown renderer with interactive tables, charts, gantt, mindmaps, and maps. Powers md-share.",
+  "license": "MIT",
+  "author": "Alan Shum",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alankyshum/md-share.git",
+    "directory": "packages/markdown-renderer"
+  },
+  "bugs": {
+    "url": "https://github.com/alankyshum/md-share/issues"
+  },
+  "homepage": "https://github.com/alankyshum/md-share/tree/master/packages/markdown-renderer#readme",
+  "keywords": [
+    "markdown",
+    "renderer",
+    "marked",
+    "mermaid",
+    "tabulator",
+    "chart.js",
+    "frappe-gantt",
+    "markmap"
+  ],
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "type": "module",
   "scripts": {
     "build": "tsup"
@@ -59,6 +89,38 @@
     "chartjs-plugin-annotation": "*",
     "frappe-gantt": "*",
     "tabulator-tables": "*"
+  },
+  "peerDependenciesMeta": {
+    "mermaid": {
+      "optional": true
+    },
+    "markmap-lib": {
+      "optional": true
+    },
+    "markmap-view": {
+      "optional": true
+    },
+    "highlight.js": {
+      "optional": true
+    },
+    "maplibre-gl": {
+      "optional": true
+    },
+    "js-yaml": {
+      "optional": true
+    },
+    "chart.js": {
+      "optional": true
+    },
+    "chartjs-plugin-annotation": {
+      "optional": true
+    },
+    "frappe-gantt": {
+      "optional": true
+    },
+    "tabulator-tables": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

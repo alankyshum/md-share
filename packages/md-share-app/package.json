@@ -1,9 +1,7 @@
 {
   "name": "@alankyshum/md-share-app",
-  "version": "1.0.0",
-  "publishConfig": {
-    "access": "public"
-  },
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite dev",
