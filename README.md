@@ -2,7 +2,8 @@
 
 Share encrypted markdown with rich interactive viewers — your own GitHub repo as the backend, no servers or KV.
 
-![md-share SPA viewer rendering IMPLEMENTATION_PLAN.md — auto-generated table of contents in the left sidebar, rendered markdown body in the center, reading-stats panel (word count, read time, headings) at the bottom-left. Everything is rendered client-side after AES-256-GCM decryption.](docs/screenshots/viewer.png)
+<img width="1336" height="1290" alt="img" src="https://github.com/user-attachments/assets/41b74e74-b990-4a3d-8ad0-8af103a947cb" />
+
 
 *The SPA viewer rendering [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): auto-generated TOC sidebar, syntax-highlighted markdown body, and live reading stats — all hydrated client-side after AES-256-GCM decryption.*
 
