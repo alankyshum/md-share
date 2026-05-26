@@ -145,6 +145,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params }) => {
     format: 'png',
     fonts: fonts.length > 0 ? fonts : undefined,
     headers: {
+      'Content-Type': 'image/png',
       'Cache-Control': 'public, max-age=86400, s-maxage=604800',
     },
   });
