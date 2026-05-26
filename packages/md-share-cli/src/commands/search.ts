@@ -12,7 +12,7 @@ export async function searchCommand(
 ): Promise<void> {
   const config = loadConfig();
   const storageRepo = options.storageRepo || config.storage_repo;
-  const appBaseUrl = options.appUrl || config.app_base_url || 'https://md-share-kut.pages.dev';
+  const appBaseUrl = options.appUrl || config.app_base_url || 'https://share.alanshum.org';
 
   if (!storageRepo) {
     console.error(

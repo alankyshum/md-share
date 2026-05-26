@@ -137,3 +137,25 @@ export async function getAuthenticatedUser(token: string): Promise<{ login: stri
   const url = 'https://api.github.com/user';
   return githubRequest(url, 'GET', token);
 }
+
+export async function forkRepo(token: string): Promise<any> {
+  try {
+    const user = await getAuthenticatedUser(token);
+    const existing = await getRepoInfo(`${user.login}/md-share`, token);
+    if (existing) {
+      return existing;
+    }
+  } catch (err) {
+    // Ignore user info fetch or check errors, proceed to fork anyway
+  }
+
+  const url = 'https://api.github.com/repos/alankyshum/md-share/forks';
+  try {
+    return await githubRequest(url, 'POST', token, {});
+  } catch (err: any) {
+    if (err.message && (err.message.includes('already') || err.message.includes('exists'))) {
+      return null;
+    }
+    return null;
+  }
+}

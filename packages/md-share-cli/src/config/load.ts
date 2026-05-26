@@ -33,7 +33,7 @@ export function loadConfig(): CliConfig {
       const legacyRaw = fs.readFileSync(LEGACY_CONFIG_PATH, 'utf8');
       const legacyData = JSON.parse(legacyRaw);
       
-      const app_base_url = legacyData.base_url || 'https://md-share-kut.pages.dev';
+      const app_base_url = legacyData.base_url || 'https://share.alanshum.org';
       
       if (legacyData.api_token) {
         console.error(
@@ -51,7 +51,7 @@ export function loadConfig(): CliConfig {
 
   // 3. Default fallback
   return {
-    app_base_url: 'https://md-share-kut.pages.dev',
+    app_base_url: 'https://share.alanshum.org',
   };
 }
 

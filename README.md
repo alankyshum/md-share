@@ -26,7 +26,7 @@ Every share is client-side encrypted before uploading. The cryptographic key is 
 
 ## 2. Quickstart — Shared Canonical Deployment
 
-Use the pre-deployed public client at `https://md-share-kut.pages.dev` to share your notes instantly. *Note: If the canonical URL currently serves legacy routes, it may require a manual Cloudflare Pages build trigger from the master branch to fully reflect the latest SPA.*
+Use the pre-deployed public client at `https://share.alanshum.org` to share your notes instantly. *Note: If the canonical URL currently serves legacy routes, it may require a manual Cloudflare Pages build trigger from the master branch to fully reflect the latest SPA.*
 
 ```bash
 # 1. Install the CLI globally
@@ -43,29 +43,38 @@ md-share README.md
 ```
 
 The CLI will encrypt the file, upload it as an idempotent JSON schema to your storage repo, and output a shareable URL similar to:
-`https://md-share-kut.pages.dev/u/<owner>/<repo>/s/<key>#k=<base64url_key>`
+`https://share.alanshum.org/u/<owner>/<repo>/s/<key>#k=<base64url_key>`
 
 ---
 
 ## 3. Quickstart — Self-Hosting
 
-You can host your own frontend instance on Cloudflare Pages for complete independence. It auto-updates directly from the canonical repository.
+Run your own SPA on Cloudflare Pages, sourced from your own fork of this repo. `md-share init --self-host` orchestrates the entire setup.
 
 ### Prerequisites
-1. A **Cloudflare Account**.
-2. A **Cloudflare API Token** with `Account > Cloudflare Pages > Edit` scope.
-3. **GitHub Cloudflare Pages App Access**: Authorize the [Cloudflare Pages GitHub App](https://github.com/apps/cloudflare-pages/installations/new) to access the canonical `alankyshum/md-share` repo.
 
-### Setup Command
-Execute the initialization flow with the `--self-host` flag:
+1. **GitHub** — already authenticated via `gh auth login` or via `md-share login`.
+2. **`cf` Cloudflare CLI** — `brew install cloudflare/cloudflare/cf` (or download from https://github.com/cloudflare/cli/releases). See our `tool--cloudflare` skill for full reference.
+3. **`CLOUDFLARE_API_TOKEN`** in your environment with `Account > Cloudflare Pages: Edit` scope. Mint at https://dash.cloudflare.com/profile/api-tokens.
+
+### Setup
 
 ```bash
-export CLOUDFLARE_API_TOKEN="your-api-token"
-md-share init --self-host --project-name my-custom-md-viewer
+export CLOUDFLARE_API_TOKEN="..."
+md-share init --self-host --project-name my-md-share
 ```
 
-### Auto-Update Model
-Self-hosted Pages projects provisioned this way are linked to the master branch of `alankyshum/md-share`. Whenever a new version is pushed to the canonical repository, Cloudflare automatically rebuilds and deploys your custom SPA. You get all bug fixes, features, and optimizations instantly without maintaining a fork.
+The wizard will:
+
+1. Fork `alankyshum/md-share` to `<your-user>/md-share` (the app source).
+2. Create your storage repo `<your-user>/md-share--cms` (the content source).
+3. Use the `cf` CLI to create a Cloudflare Pages project linked to your app fork (production branch `master`, root dir `packages/md-share-app`, build command `pnpm install --frozen-lockfile && pnpm --filter @alankyshum/md-share-app build`, output `build`).
+4. Wait for the first build and capture the resulting `<name>.pages.dev` subdomain.
+5. Write the URL to `~/.config/md-share/config.json` as `app_base_url`.
+
+### Updating
+
+Your app fork tracks `alankyshum/md-share/master`. When you want upstream changes, sync your fork via the GitHub UI ("Sync fork" button on your fork's page) or `gh repo sync <your-user>/md-share`. Cloudflare Pages auto-rebuilds on each push to your fork's `master` branch.
 
 ---
 

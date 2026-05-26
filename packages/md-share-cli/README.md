@@ -31,35 +31,19 @@ md-share --text "# Hello\nWorld"
 
 ## Self-hosting
 
-`md-share` supports a fully automated, CLI-driven self-hosting provisioning flow that connects your own Cloudflare Pages project to the canonical `md-share` repo, giving you auto-updates without managing forks.
+`md-share` supports a fully automated, CLI-driven self-hosting provisioning flow that forks the canonical repository and connects your own Cloudflare Pages project to your fork.
 
 ### Prerequisites
 
-1. A **Cloudflare Account**.
-2. A **Cloudflare API Token** with `Account.Cloudflare Pages:Edit` permission.
-3. **GitHub Cloudflare Pages App Access**: Ensure you have granted the [Cloudflare Pages GitHub App](https://github.com/apps/cloudflare-pages/installations/new) access to the canonical `alankyshum/md-share` repository.
+1. **GitHub** — already authenticated via `gh auth login` or via `md-share login`.
+2. **`cf` Cloudflare CLI** — `brew install cloudflare/cloudflare/cf` (or download from https://github.com/cloudflare/cli/releases).
+3. **`CLOUDFLARE_API_TOKEN`** in your environment with `Account > Cloudflare Pages: Edit` scope.
 
-### Quick Start
+### Setup
 
-Run the initialization command with the `--self-host` flag:
-
-```bash
-md-share init --self-host
-```
-
-This one-liner will:
-1. Securely request or read your Cloudflare API Token (from `CLOUDFLARE_API_TOKEN` environment variable or keychain).
-2. Store the token in the macOS Keychain under service `md-share-cf`.
-3. Fetch your Cloudflare accounts and prompt you to select one (if multiple exist).
-4. Automatically generate a unique Pages project name (or you can override it with `--project-name <name>`).
-5. Provision the Cloudflare Pages project pointing to the canonical `alankyshum/md-share` repository.
-6. Retrieve the new `.pages.dev` URL and write it as the `app_base_url` in your local configuration.
-7. Continue with the normal initialization wizard to authenticate with GitHub and bootstrap your storage repository.
-
-### Verification
-
-Once provisioning is complete, your self-hosted site will be live at `https://<projectName>.pages.dev`. You can verify your deployment config and metadata at:
+Execute the initialization flow with the `--self-host` flag:
 
 ```bash
-curl https://<projectName>.pages.dev/api/config
+export CLOUDFLARE_API_TOKEN="..."
+md-share init --self-host --project-name my-md-share
 ```
