@@ -2,25 +2,38 @@
 
 Share encrypted markdown with rich interactive viewers — your own GitHub repo as the backend, no servers or KV.
 
+![md-share SPA viewer rendering IMPLEMENTATION_PLAN.md — auto-generated table of contents in the left sidebar, rendered markdown body in the center, reading-stats panel (word count, read time, headings) at the bottom-left. Everything is rendered client-side after AES-256-GCM decryption.](docs/screenshots/viewer.png)
+
+*The SPA viewer rendering [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): auto-generated TOC sidebar, syntax-highlighted markdown body, and live reading stats — all hydrated client-side after AES-256-GCM decryption.*
+
 ---
 
 ## 1. Architecture
 
-```
-                                            [ Client-Side Decryption Key (#k=) ]
-                                                            │
-                                                            ▼ (Fragment stays in browser)
-┌──────────────┐   Encrypted JSON    ┌────────────────┐           ┌──────────────────┐
-│  md-share    │ ──────────────────> │  GitHub Repos  │  ======>  │ Cloudflare Pages │
-│  CLI Tool    │   (AES-256-GCM)     │ (Storage Repo) │           │ SPA Viewer App   │
-└──────────────┘                     └────────────────┘           └──────────────────┘
-                                                                            ▲
-                                                                            │ (Fetch encrypted payload)
-                                                                            │
-                                                                   [ Public GitHub API ]
+```mermaid
+flowchart LR
+    Author(["✍️ Author"])
+    Reader(["👁️ Reader"])
+    CLI["md-share CLI<br/>(Node)"]
+    GH[("GitHub Storage Repo<br/>&lt;user&gt;/md-share--cms")]
+    PF["Cloudflare Pages Function<br/>/u/:owner/:repo/s/:key"]
+    SPA["SPA Viewer<br/>(browser)"]
+
+    Author -- "markdown file" --> CLI
+    CLI -- "1. PUT encrypted JSON<br/>(AES-256-GCM + gzip)" --> GH
+    CLI -- "2. share URL<br/>#k=&lt;base64url key&gt;" --> Author
+    Author -. "shares link" .-> Reader
+
+    Reader -- "GET /u/:o/:r/s/:key" --> PF
+    PF -- "fetch raw JSON" --> GH
+    GH -- "encrypted payload" --> PF
+    PF -- "HTML + injected ciphertext<br/>+ OG meta tags" --> SPA
+    SPA -- "decrypt with #k=…<br/>(fragment never sent to server)" --> Reader
 ```
 
 Every share is client-side encrypted before uploading. The cryptographic key is appended to the URL as a fragment identifier (`#k=<base64url_key>`). Because browsers do not transmit URL fragments to servers in HTTP requests, your markdown remains 100% private to you and whoever you share the link with.
+
+See [§5 Data Flow](#5-data-flow) for step-by-step sequence diagrams of how the CLI publishes a share and how the reader decrypts and renders it.
 
 ---
 
@@ -98,7 +111,109 @@ Standard PBKDF2/password-based encryption is intentionally **not supported**. Se
 
 ---
 
-## 5. Storage Repo Layout
+## 5. Data Flow
+
+### 5.1 Create — CLI publishes a new share
+
+How `md-share <file>` turns a local markdown file into a shareable URL.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as md-share CLI<br/>(commands/share.ts)
+    participant FS as Local FS / stdin
+    participant Lint as Linters<br/>(mermaid, chart, map, …)
+    participant Crypto as share-crypto<br/>(WebCrypto + pako)
+    participant GH as GitHub<br/>Contents API
+
+    User->>CLI: md-share README.md
+    CLI->>FS: read file (or stdin / --text)
+    FS-->>CLI: markdown
+    CLI->>Lint: lintMarkdown(md)
+    Lint-->>CLI: errors? (exit 2 if any, unless --no-lint)
+
+    Note over CLI: encodeChunk(md) → tempUrl<br/>shouldShorten = isAlwaysShort OR tempUrl.length > 1024
+
+    alt shouldShorten AND storage_repo configured AND md ≤ 100KB
+        CLI->>Crypto: generateKey() → 32 random bytes
+        CLI->>Crypto: encryptShare(md, key)
+        Note over Crypto: 1. pako.gzip(md)<br/>2. AES-256-GCM encrypt<br/>   (fresh 12-byte IV, 128-bit tag)
+        Crypto-->>CLI: { iv, ct }
+        CLI->>CLI: deriveMetaFromMarkdown(md)<br/>→ plaintext title + description
+        CLI->>CLI: shareKey = sha256(md).slice(0,12)<br/>(or --update &lt;key&gt;)<br/>path = shares/&lt;XX&gt;/&lt;key&gt;.json
+        CLI->>GH: GET /repos/:repo/contents/:path<br/>(reuse SHA + created_at if exists)
+        GH-->>CLI: existing file or 404
+        CLI->>GH: PUT /repos/:repo/contents/:path<br/>{ v:1, title, description, alg, iv, ct }
+        GH-->>CLI: commit OK
+        CLI-->>User: https://&lt;app&gt;/u/:o/:r/s/:key<br/>#k=&lt;base64url(key)&gt;
+    else fallback — short markdown, --no-short, no repo, &gt;100KB, or GH error
+        CLI->>CLI: chunkMarkdown(md)<br/>each chunk → pako.gzip + base64url
+        CLI-->>User: https://&lt;app&gt;/#v1.&lt;data&gt;<br/>or #v1.NofM.&lt;data&gt; (multi-part)
+    end
+
+    CLI->>User: copy to clipboard (unless --no-copy)<br/>+ open in browser (if --open)
+```
+
+Key invariants:
+
+- The 32-byte symmetric key **never leaves the author's machine** in any HTTP request body. It is only ever placed in the URL fragment, which browsers do not transmit.
+- `title` and `description` are **plaintext** in the JSON so OG cards and `md-share list` / `search` work without the key.
+- The 12-char `shareKey` is a deterministic SHA-256 prefix of the markdown — repeated `md-share` on unchanged content is idempotent.
+- `--update <key|url>` forces the same `shareKey`, preserves the original `created_at`, and bumps `updated_at`.
+
+### 5.2 Read — viewer decrypts and renders
+
+How opening `https://<app>/u/:owner/:repo/s/:key#k=<key>` becomes a rendered page.
+
+```mermaid
+sequenceDiagram
+    actor Reader
+    participant Browser
+    participant PF as Pages Function<br/>functions/u/[owner]/[repo]/s/[key].ts
+    participant GHraw as raw.githubusercontent.com
+    participant Assets as Cloudflare Pages<br/>(SPA static assets)
+    participant SPA as SPA<br/>(+page.svelte)
+    participant Crypto as share-crypto<br/>(WebCrypto + pako)
+    participant Renderer as markdown-renderer<br/>(marked + hljs + enhancers)
+
+    Reader->>Browser: open share URL
+    Note over Browser: #k=… stays client-side<br/>(fragment never sent on the wire)
+    Browser->>PF: GET /u/:o/:r/s/:key
+
+    PF->>GHraw: GET /:o/:r/main/shares/&lt;XX&gt;/&lt;key&gt;.json
+    GHraw-->>PF: encrypted JSON { v, title, description, alg, iv, ct }
+    PF->>PF: parseShareJson + deriveMeta
+    PF->>Assets: fetch / (SPA index.html)
+    Assets-->>PF: index.html
+    PF->>PF: strip default &lt;title&gt;<br/>inject &lt;title&gt; + og:* / twitter:* tags<br/>inject &lt;script&gt;window.__MD_ENCRYPTED = { iv, ct, key, owner, repo }&lt;/script&gt;
+    PF-->>Browser: HTML (with ciphertext inline + social-preview meta)
+
+    Note over Browser: Social crawlers (iMessage, Slack, …)<br/>stop here — only plaintext title/description visible
+
+    Browser->>SPA: hydrate +page.svelte
+    SPA->>SPA: read kParam from location.hash
+    alt kParam present
+        SPA->>Crypto: decryptShare(iv, ct, base64UrlToBytes(kParam))
+        Note over Crypto: AES-256-GCM decrypt<br/>→ pako.ungzip<br/>→ UTF-8 decode
+        Crypto-->>SPA: markdown plaintext
+        SPA->>SPA: extractFrontmatter(md)
+        SPA->>Renderer: renderMarkdown(content, target, dark)
+        Note over Renderer: marked → HTML<br/>+ hljs syntax highlighting<br/>+ enhance: mermaid, markmap,<br/>  chart.js, MapLibre, Tabulator
+        Renderer-->>SPA: interactive DOM
+        SPA-->>Reader: rendered document<br/>+ selection menu / fullscreen viewer
+    else missing / wrong #k=
+        SPA-->>Reader: "Decryption failed — invalid key"
+    end
+```
+
+Fallback paths the reader also handles:
+
+- **Fragment URLs** (`#v1.<data>` or `#v1.NofM.<data>`) — no Pages Function, no GitHub fetch; `decodeFragment` ungzips inline and renders.
+- **Legacy KV short links** (`/s/<8charkey>`) — served by the old Workers KV function until their 1-year sliding TTL expires.
+
+---
+
+## 6. Storage Repo Layout
 
 Shared files are committed to a dedicated public GitHub repository (defaulting to `<user>/md-share--cms`).
 
@@ -125,7 +240,7 @@ Each `.json` share file adheres to the following structure:
 
 ---
 
-## 6. URL Shapes
+## 7. URL Shapes
 
 ### Storage-Backed Share (New)
 The standard URL shape for secure storage shares:
@@ -139,9 +254,26 @@ For ad-hoc shares without GitHub repository storage, the CLI can emit compressed
 ### Legacy KV Short URLs
 Historical KV-backed short links like `https://md-share-kut.pages.dev/s/<8charkey>` will continue resolving via the old Cloudflare Workers KV functions until their 1-year sliding TTL prunes them. The new CLI does not generate KV-backed short URLs.
 
+### Which URL shape does the CLI emit?
+
+```mermaid
+flowchart TD
+    A[md-share &lt;file&gt;] --> B{--no-short?}
+    B -- yes --> F[Fragment URL<br/>#v1.&lt;gzip+b64&gt;]
+    B -- no --> C{tempUrl &gt; 1024 chars<br/>OR --always-short<br/>OR --update?}
+    C -- no --> F
+    C -- yes --> D{storage_repo<br/>configured?}
+    D -- no --> F1[Fragment URL<br/>+ warning to run<br/>md-share init]
+    D -- yes --> E{markdown<br/>&gt; 100KB?}
+    E -- yes --> F2[Fragment URL<br/>+ size warning]
+    E -- no --> G{GitHub PUT<br/>succeeds?}
+    G -- no --> F3[Fragment URL<br/>+ error log]
+    G -- yes --> H[Storage URL<br/>/u/:o/:r/s/:key#k=&lt;key&gt;]
+```
+
 ---
 
-## 7. CLI Command Reference
+## 8. CLI Command Reference
 
 Execute commands with `--help` for additional flags (e.g., `md-share list --help`).
 
@@ -158,7 +290,7 @@ Execute commands with `--help` for additional flags (e.g., `md-share list --help
 
 ---
 
-## 8. Rich Content Support
+## 9. Rich Content Support
 
 The renderer dynamically detects and upgrades advanced diagramming, mapping, and charting formats:
 
@@ -201,7 +333,7 @@ Selecting text in the viewer triggers a floating menu:
 
 ---
 
-## 9. Open Graph & Social Previews
+## 10. Open Graph & Social Previews
 
 Opening a storage-backed link on platforms like iMessage, Discord, Slack, or Twitter fetches a customized preview card:
 - **Title**: Extracted from your document frontmatter or H1.
@@ -212,44 +344,38 @@ Opening a storage-backed link on platforms like iMessage, Discord, Slack, or Twi
 
 ---
 
-## 10. Local Publish Flow
+## 11. Local Publish Flow
 
 The monorepo uses `lefthook` and `bin/publish-on-version-bump.sh` to handle npm publication of updated packages.
 
-```
-                  ┌──────────────────────────────┐
-                  │ Git Commit (version bump)    │
-                  └──────────────┬───────────────┘
-                                 │
-                                 ▼ (Triggers post-commit)
-                  ┌──────────────────────────────┐
-                  │ Lefthook post-commit hook    │
-                  └──────────────┬───────────────┘
-                                 │
-                                 ▼ (Checks version differences)
-                  ┌──────────────────────────────┐
-                  │ bin/publish-on-version-bump.sh│
-                  └──────────────┬───────────────┘
-                                 │
-                   ┌─────────────┴─────────────┐
-                   ▼                           ▼
-        [ Yes: Version Diff ]        [ No: No Version Diff ]
-                   │                           │
-                   ▼                           ▼
-         npm publish --access public         Exit 0
+```mermaid
+flowchart TD
+    A[git commit<br/>version bump in packages/*/package.json] --> B[lefthook<br/>post-commit hook]
+    B --> C[bin/publish-on-version-bump.sh]
+    C --> D{HEAD~1<br/>exists?}
+    D -- no --> Z[exit 0]
+    D -- yes --> E[For each packages/*/package.json]
+    E --> F{version &ne;<br/>HEAD~1 version?}
+    F -- no --> E
+    F -- yes --> G{private:&nbsp;true<br/>OR new package?}
+    G -- yes --> H[skip — log reason]
+    H --> E
+    G -- no --> I[cd packages/&lt;pkg&gt;<br/>npm publish --access public]
+    I -.->|2FA OTP prompt| J([User enters OTP])
+    J --> E
 ```
 
-*Note: Since npm publication requires a 2-Factor Authentication (2FA) One-Time Password (OTP), local commits from the command line that trigger this hook will prompt for your OTP.*
+*Note: Since npm publication requires a 2-Factor Authentication (2FA) One-Time Password (OTP), local commits from the command line that trigger this hook will prompt for your OTP — once per published package in the same commit.*
 
 ---
 
-## 11. Legacy Boundary
+## 12. Legacy Boundary
 
 The legacy `share--markdown` skill has been moved and renamed to `share--markdown-legacy`. It remains fully operational for accessing and updating pre-existing Workers-KV shares until the 1-year sliding TTL naturally prunes them. New shares should adopt the modern `md-share` CLI.
 
 ---
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 - **Wrong key fragment**: If the key fragment `#k=...` is altered, missing, or corrupted, the viewer will display a decryption failure.
 - **GitHub API Rate Limits**: Listing or searching extensive shares might trigger rate limiting. Authenticated CLI commands receive generous rate-limit ceilings.
@@ -258,6 +384,6 @@ The legacy `share--markdown` skill has been moved and renamed to `share--markdow
 
 ---
 
-## 13. License
+## 14. License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for more details.
