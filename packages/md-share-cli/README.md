@@ -31,13 +31,13 @@ md-share --text "# Hello\nWorld"
 
 ## Self-hosting
 
-`md-share` supports a fully automated, CLI-driven self-hosting provisioning flow that forks the canonical repository and connects your own Cloudflare Pages project to your fork.
+`md-share` supports a fully automated, CLI-driven self-hosting provisioning flow that forks the canonical repository and connects your own Cloudflare Worker to your fork.
 
 ### Prerequisites
 
 1. **GitHub** — already authenticated via `gh auth login` or via `md-share login`.
 2. **`cf` Cloudflare CLI** — `brew install cloudflare/cloudflare/cf` (or download from https://github.com/cloudflare/cli/releases).
-3. **`CLOUDFLARE_API_TOKEN`** in your environment with `Account > Cloudflare Pages: Edit` scope.
+3. **`CLOUDFLARE_API_TOKEN`** in your environment with `Account > Cloudflare Workers Scripts: Edit` scope.
 
 ### Setup
 

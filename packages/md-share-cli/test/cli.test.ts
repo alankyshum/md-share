@@ -156,11 +156,45 @@ describe('Lint Checks', () => {
 describe('URL and key parsing', () => {
   it('should extract 12-char key from --update args', () => {
     const url = 'https://my-app.pages.dev/u/owner/repo/s/abcdef123456#k=somekey';
-    const key = parseUpdateTarget(url);
-    expect(key).toBe('abcdef123456');
+    const result = parseUpdateTarget(url);
+    expect(result).toEqual({
+      shareKey: 'abcdef123456',
+      existingKeyB64: 'somekey',
+    });
 
     const bareKey = parseUpdateTarget('abcdef123456');
-    expect(bareKey).toBe('abcdef123456');
+    expect(bareKey).toEqual({
+      shareKey: 'abcdef123456',
+    });
+  });
+
+  it('should parse full URL with fragment key', () => {
+    const url = 'https://share.alanshum.org/u/alankyshum/md-share--cms/s/7bafd34fb516#k=FvZpVR3xg_d3-VdU-s-Ps2an1l9C5fdZloqIx__OAKM';
+    const result = parseUpdateTarget(url);
+    expect(result).toEqual({
+      shareKey: '7bafd34fb516',
+      existingKeyB64: 'FvZpVR3xg_d3-VdU-s-Ps2an1l9C5fdZloqIx__OAKM',
+    });
+  });
+
+  it('should parse URL without fragment key', () => {
+    const urlNoFrag = 'https://share.alanshum.org/u/owner/repo/s/abc123def456';
+    const resultNoFrag = parseUpdateTarget(urlNoFrag);
+    expect(resultNoFrag).toEqual({
+      shareKey: 'abc123def456',
+    });
+  });
+
+  it('should parse bare 12-char key', () => {
+    const bareKey = parseUpdateTarget('abc123def456');
+    expect(bareKey).toEqual({
+      shareKey: 'abc123def456',
+    });
+  });
+
+  it('should return null for garbage input', () => {
+    const garbage = parseUpdateTarget('not-a-share-key');
+    expect(garbage).toBeNull();
   });
 
   it('should extract 12-char key from delete command input', () => {

@@ -8,6 +8,7 @@ import {
   encryptShare,
   bytesToBase64Url,
   serializeEncryptedShare,
+  base64UrlToBytes,
 } from '@alankyshum/share-crypto';
 import { getShareKey } from '../utils/crypto.js';
 import { deriveMetaFromMarkdown } from '../utils/meta.js';
@@ -17,19 +18,36 @@ import { copyToClipboard } from '../utils/clipboard.js';
 import { openInBrowser } from '../utils/browser.js';
 import { printStats } from '../utils/stats.js';
 
-export function parseUpdateTarget(s: string): string | null {
+export function parseUpdateTarget(s: string): { shareKey: string; existingKeyB64?: string } | null {
   const trimmed = s.trim();
   // If it's a URL
+  let shareKey: string | null = null;
   const mUrl = trimmed.match(/\/s\/([0-9a-f]{12})\b/);
   if (mUrl) {
-    return mUrl[1];
+    shareKey = mUrl[1];
+  } else {
+    // If it's a bare key
+    const mKey = trimmed.match(/\b([0-9a-f]{12})\b/);
+    if (mKey) {
+      shareKey = mKey[1];
+    }
   }
-  // If it's a bare key
-  const mKey = trimmed.match(/\b([0-9a-f]{12})\b/);
-  if (mKey) {
-    return mKey[1];
+
+  if (!shareKey) {
+    return null;
   }
-  return null;
+
+  let existingKeyB64: string | undefined = undefined;
+  const hashIdx = trimmed.indexOf('#');
+  if (hashIdx !== -1) {
+    const fragment = trimmed.slice(hashIdx + 1);
+    const kMatch = fragment.match(/^k=([A-Za-z0-9_-]+=*)/);
+    if (kMatch) {
+      existingKeyB64 = kMatch[1];
+    }
+  }
+
+  return { shareKey, existingKeyB64 };
 }
 
 export async function shareCommand(
@@ -48,6 +66,7 @@ export async function shareCommand(
     alwaysShort?: boolean;
     shortThreshold?: number;
     update?: string;
+    rotateKey?: boolean;
     noLint?: boolean;
   }
 ): Promise<void> {
@@ -92,15 +111,42 @@ export async function shareCommand(
 
   // --update forces always-short and disables --no-short
   let updateKey: string | null = null;
+  let existingKeyBytes: Uint8Array | null = null;
   let isNoShort = !!options.noShort;
   let isAlwaysShort = !!options.alwaysShort;
 
   if (options.update) {
-    updateKey = parseUpdateTarget(options.update);
-    if (!updateKey) {
+    const parsed = parseUpdateTarget(options.update);
+    if (!parsed) {
       console.error(`Error: Could not extract a valid 12-char key from update target "${options.update}"`);
       process.exit(1);
     }
+    updateKey = parsed.shareKey;
+
+    if (parsed.existingKeyB64) {
+      try {
+        existingKeyBytes = base64UrlToBytes(parsed.existingKeyB64);
+      } catch (e) {
+        console.error(`Error: Failed to decode existing key from base64url: ${(e as Error).message}`);
+        process.exit(1);
+      }
+    }
+
+    if (!parsed.existingKeyB64 && !options.rotateKey) {
+      console.error(
+        `Error: --update was passed but the URL does not contain '#k=<key>'.\n` +
+        `Without the existing key, updating will rotate the decryption key and break every existing link to this share.\n` +
+        `Either:\n` +
+        `  - Pass the FULL share URL including the '#k=…' fragment, OR\n` +
+        `  - Pass --rotate-key to intentionally rotate (this breaks old links).`
+      );
+      process.exit(1);
+    }
+
+    if (options.rotateKey) {
+      console.warn(`\x1b[33m⚠ --rotate-key set: existing links to this share will stop working\x1b[0m`);
+    }
+
     if (isNoShort) {
       console.warn('Warning: --no-short ignored when --update is set');
     }
@@ -144,8 +190,11 @@ export async function shareCommand(
     }
 
     try {
-      // Generate WebCrypto key
-      const keyBytes = await generateKey();
+      // Use existing key on --update (Path 1: stable per-share key), unless --rotate-key was set
+      const keyBytes = (options.rotateKey ? null : existingKeyBytes) ?? await generateKey();
+      if (keyBytes && keyBytes.length !== 32) {
+        console.warn(`Warning: Decoded key is ${keyBytes.length} bytes, expected 32 bytes.`);
+      }
       const keyBase64Url = bytesToBase64Url(keyBytes);
 
       // Encrypt

@@ -20,10 +20,10 @@ export async function initCommand(options: {
       let projectName = options.projectName || 'md-share-dryrun';
 
       console.log(`[DRY RUN] Cloudflare Token: ${cfToken === 'dry-run-skip' ? 'dry-run-skip' : '***'}`);
-      console.log(`[DRY RUN] Pages Project Name: ${projectName}`);
-      console.log(`[DRY RUN] App Base URL: https://${projectName}.pages.dev`);
+      console.log(`[DRY RUN] Worker Name: ${projectName}`);
+      console.log(`[DRY RUN] App Base URL: https://${projectName}.workers.dev`);
       console.log(`[DRY RUN] Storage Repo Name: ${options.storageName || 'md-share--cms'}`);
-      console.log('[DRY RUN] Would fork alankyshum/md-share to your-user/md-share, bootstrap storage repo, detect cf CLI, invoke cf to create Pages project, and save config.');
+      console.log('[DRY RUN] Would fork alankyshum/md-share to your-user/md-share, bootstrap storage repo, detect cf CLI, guide you to set up Workers Builds project, and save config.');
       return;
     } else {
       console.log('[DRY RUN] Initializing md-share configuration...');
@@ -81,7 +81,7 @@ export async function initCommand(options: {
     const username = user.login;
 
     if (isSelfHost) {
-      console.log('\n=== Cloudflare Pages Provisioning ===');
+      console.log('\n=== Cloudflare Workers Provisioning ===');
 
       // Fork alankyshum/md-share to <user>/md-share
       console.log(`Forking alankyshum/md-share to ${username}/md-share...`);
@@ -106,10 +106,10 @@ export async function initCommand(options: {
       if (!cfToken) {
         if (rl.closed) {
           const rlNew = readline.createInterface({ input, output });
-          cfToken = await rlNew.question('Enter your Cloudflare API Token (requires Account.Pages:Edit): ');
+          cfToken = await rlNew.question('Enter your Cloudflare API Token (requires Account.Workers:Edit): ');
           rlNew.close();
         } else {
-          cfToken = await rl.question('Enter your Cloudflare API Token (requires Account.Pages:Edit): ');
+          cfToken = await rl.question('Enter your Cloudflare API Token (requires Account.Workers:Edit): ');
         }
         cfToken = cfToken.trim();
       }
@@ -118,61 +118,55 @@ export async function initCommand(options: {
       }
       process.env.CLOUDFLARE_API_TOKEN = cfToken;
 
-      let projectName = options.projectName;
-      if (!projectName) {
+      // Worker names must be lowercase, alphanumeric, dashes, 1-63 chars
+      let workerName = options.projectName;
+      if (!workerName) {
         const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
         let randomStr = '';
         for (let i = 0; i < 6; i++) {
           randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-        projectName = `md-share-${randomStr}`;
+        workerName = `md-share-${randomStr}`;
       }
 
-      console.log(`Creating Cloudflare Pages project "${projectName}" using cf CLI...`);
-      const bodyPayload = {
-        name: projectName,
-        production_branch: 'master',
-        source: {
-          type: 'github',
-          config: {
-            owner: username,
-            repo_name: 'md-share',
-            production_branch: 'master',
-            root_dir: 'packages/md-share-app',
-            deployments_enabled: true,
-            production_deployment_enabled: true
-          }
-        },
-        build_config: {
-          build_command: 'pnpm install --frozen-lockfile && pnpm --filter @alankyshum/md-share-app build',
-          destination_dir: 'build',
-          root_dir: 'packages/md-share-app'
-        }
-      };
+      console.log('\n=== Cloudflare Workers Builds Setup ===');
+      console.log('Cloudflare Workers Builds currently requires a one-time dashboard step to connect your fork.');
+      console.log('After this is set up, every push to master will auto-deploy your application.');
+      console.log('\nPlease follow these steps to connect your fork:');
+      console.log('1. Open the Cloudflare dashboard: https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/workers');
+      console.log('2. Click on "Import a repository" under "Create using Workers Builds" or "Connect to Git"');
+      console.log(`3. Select your fork: \`${username}/md-share\``);
+      console.log('4. Configure the Build Settings:');
+      console.log('   - Project Name / Worker Name: ' + workerName);
+      console.log('   - Production branch: master');
+      console.log('   - Root directory: packages/md-share-app');
+      console.log('   - Build command: pnpm install --frozen-lockfile && pnpm --filter @alankyshum/md-share-app build');
+      console.log('   - Deploy command: wrangler deploy');
+      console.log('5. Click "Save and Deploy" to trigger the first build.');
 
-      let subdomain = '';
-      try {
-        const cfCmd = `cf pages projects create ${projectName} --body '${JSON.stringify(bodyPayload)}'`;
-        const stdout = execSync(cfCmd, { stdio: ['ignore', 'pipe', 'pipe'], env: process.env }).toString();
-        const parsed = JSON.parse(stdout);
-        subdomain = parsed?.result?.subdomain || '';
-      } catch (err: any) {
-        console.error(`\x1b[31mError creating Pages project: ${err.message}\x1b[0m`);
-        if (err.stderr) {
-          console.error(err.stderr.toString());
-        }
-        console.error('\nFallback Advice: If cf pages is not available, upgrade your cf CLI or use the Cloudflare dashboard at https://dash.cloudflare.com/?to=/:account/pages');
-        throw err;
+      console.log('\nOnce you have saved and deployed your Worker, please enter its deployed URL.');
+      console.log(`(e.g., https://${workerName}.<your-subdomain>.workers.dev)`);
+
+      let userProvidedUrl = '';
+      if (rl.closed) {
+        const rlNew = readline.createInterface({ input, output });
+        userProvidedUrl = await rlNew.question('\nEnter your Worker\'s base URL: ');
+        rlNew.close();
+      } else {
+        userProvidedUrl = await rl.question('\nEnter your Worker\'s base URL: ');
       }
 
-      if (!subdomain) {
-        throw new Error('Failed to parse subdomain from cf CLI output.');
+      userProvidedUrl = userProvidedUrl.trim();
+      if (!userProvidedUrl) {
+        throw new Error('Worker base URL is required to complete self-hosting setup.');
       }
 
-      appBaseUrl = `https://${subdomain}`;
-      console.log(`\x1b[32m[OK] Created Cloudflare Pages project: ${appBaseUrl}\x1b[0m\n`);
+      if (!userProvidedUrl.startsWith('http://') && !userProvidedUrl.startsWith('https://')) {
+        userProvidedUrl = `https://${userProvidedUrl}`;
+      }
 
-      console.log(`Connect your GitHub fork to Cloudflare: visit https://dash.cloudflare.com/?to=/:account/pages and authorize the Cloudflare Workers and Pages app for \`${username}/md-share\`. Then push any change to trigger the first build.\n`);
+      appBaseUrl = userProvidedUrl;
+      console.log(`\x1b[32m[OK] Set App Base URL to: ${appBaseUrl}\x1b[0m\n`);
     }
 
     console.log(`Using App Base URL: \x1b[36m${appBaseUrl}\x1b[0m\n`);

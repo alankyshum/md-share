@@ -9,6 +9,7 @@ dist/
 **/.svelte-kit/
 .wrangler/
 **/.wrangler/
+packages/md-share-app/src/_build-info.ts
 
 # Local config and secrets
 config.json

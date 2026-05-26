@@ -17,7 +17,7 @@ flowchart LR
     Reader(["👁️ Reader"])
     CLI["md-share CLI<br/>(Node)"]
     GH[("GitHub Storage Repo<br/>(user)/md-share--cms")]
-    PF["Cloudflare Pages Function<br/>/u/:owner/:repo/s/:key"]
+    PF["Cloudflare Worker route<br/>/u/:owner/:repo/s/:key"]
     SPA["SPA Viewer<br/>(browser)"]
 
     Author -- "markdown file" --> CLI
@@ -40,7 +40,7 @@ See [§5 Data Flow](#5-data-flow) for step-by-step sequence diagrams of how the 
 
 ## 2. Quickstart — Shared Canonical Deployment
 
-Use the pre-deployed public client at `https://share.alanshum.org` to share your notes instantly. *Note: If the canonical URL currently serves legacy routes, it may require a manual Cloudflare Pages build trigger from the master branch to fully reflect the latest SPA.*
+Use the pre-deployed public client at `https://share.alanshum.org` to share your notes instantly. *Note: If the canonical URL currently serves legacy routes, it may require a manual Cloudflare Worker deployment trigger from the master branch to fully reflect the latest SPA.*
 
 ```bash
 # 1. Install the CLI globally
@@ -63,13 +63,13 @@ The CLI will encrypt the file, upload it as an idempotent JSON schema to your st
 
 ## 3. Quickstart — Self-Hosting
 
-Run your own SPA on Cloudflare Pages, sourced from your own fork of this repo. `md-share init --self-host` orchestrates the entire setup.
+Run your own SPA on Cloudflare Workers, sourced from your own fork of this repo. `md-share init --self-host` orchestrates the entire setup.
 
 ### Prerequisites
 
 1. **GitHub** — already authenticated via `gh auth login` or via `md-share login`.
 2. **`cf` Cloudflare CLI** — `brew install cloudflare/cloudflare/cf` (or download from https://github.com/cloudflare/cli/releases). See our `tool--cloudflare` skill for full reference.
-3. **`CLOUDFLARE_API_TOKEN`** in your environment with `Account > Cloudflare Pages: Edit` scope. Mint at https://dash.cloudflare.com/profile/api-tokens.
+3. **`CLOUDFLARE_API_TOKEN`** in your environment with `Account > Cloudflare Workers Scripts: Edit` scope. Mint at https://dash.cloudflare.com/profile/api-tokens.
 
 ### Setup
 
@@ -82,13 +82,13 @@ The wizard will:
 
 1. Fork `alankyshum/md-share` to `<your-user>/md-share` (the app source).
 2. Create your storage repo `<your-user>/md-share--cms` (the content source).
-3. Use the `cf` CLI to create a Cloudflare Pages project linked to your app fork (production branch `master`, root dir `packages/md-share-app`, build command `pnpm install --frozen-lockfile && pnpm --filter @alankyshum/md-share-app build`, output `build`).
-4. Wait for the first build and capture the resulting `<name>.pages.dev` subdomain.
+3. Use the `cf` CLI to create a Cloudflare Worker linked to your app fork (production branch `master`, root dir `packages/md-share-app`, build command `pnpm install --frozen-lockfile && pnpm --filter @alankyshum/md-share-app build`, output `build`).
+4. Wait for the first build and capture the resulting `<name>.workers.dev` subdomain.
 5. Write the URL to `~/.config/md-share/config.json` as `app_base_url`.
 
 ### Updating
 
-Your app fork tracks `alankyshum/md-share/master`. When you want upstream changes, sync your fork via the GitHub UI ("Sync fork" button on your fork's page) or `gh repo sync <your-user>/md-share`. Cloudflare Pages auto-rebuilds on each push to your fork's `master` branch.
+Your app fork tracks `alankyshum/md-share/master`. When you want upstream changes, sync your fork via the GitHub UI ("Sync fork" button on your fork's page) or `gh repo sync <your-user>/md-share`. Cloudflare Worker auto-rebuilds on each push to your fork's `master` branch.
 
 ---
 
@@ -170,9 +170,9 @@ How opening `https://<app>/u/:owner/:repo/s/:key#k=<key>` becomes a rendered pag
 sequenceDiagram
     actor Reader
     participant Browser
-    participant PF as Pages Function<br/>functions/u/[owner]/[repo]/s/[key].ts
+    participant PF as Worker fetch handler<br/>src/worker.ts
     participant GHraw as raw.githubusercontent.com
-    participant Assets as Cloudflare Pages<br/>(SPA static assets)
+    participant Assets as Worker Static Assets<br/>(SPA bundle)
     participant SPA as SPA<br/>(+page.svelte)
     participant Crypto as share-crypto<br/>(WebCrypto + pako)
     participant Renderer as markdown-renderer<br/>(marked + hljs + enhancers)
@@ -209,7 +209,7 @@ sequenceDiagram
 
 Fallback paths the reader also handles:
 
-- **Fragment URLs** (`#v1.<data>` or `#v1.NofM.<data>`) — no Pages Function, no GitHub fetch; `decodeFragment` ungzips inline and renders.
+- **Fragment URLs** (`#v1.<data>` or `#v1.NofM.<data>`) — no Worker fetch handler, no GitHub fetch; `decodeFragment` ungzips inline and renders.
 - **Legacy KV short links** (`/s/<8charkey>`) — served by the old Workers KV function until their 1-year sliding TTL expires.
 
 ---
@@ -380,7 +380,7 @@ The legacy `share--markdown` skill has been moved and renamed to `share--markdow
 
 - **Wrong key fragment**: If the key fragment `#k=...` is altered, missing, or corrupted, the viewer will display a decryption failure.
 - **GitHub API Rate Limits**: Listing or searching extensive shares might trigger rate limiting. Authenticated CLI commands receive generous rate-limit ceilings.
-- **Cloudflare Pages Deployment Fails**: Ensure your self-hosted Cloudflare Pages has authorized the `alankyshum/md-share` repository.
+- **Cloudflare Worker Deployment Fails**: Ensure your self-hosted Cloudflare Worker has authorized the `alankyshum/md-share` repository.
 - **Aggregation / Chunking issues**: If an offline share requires splitting into more than 100 URL chunks, the CLI will error. Please use standard storage mode instead.
 
 ---
