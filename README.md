@@ -16,13 +16,13 @@ flowchart LR
     Author(["✍️ Author"])
     Reader(["👁️ Reader"])
     CLI["md-share CLI<br/>(Node)"]
-    GH[("GitHub Storage Repo<br/>&lt;user&gt;/md-share--cms")]
+    GH[("GitHub Storage Repo<br/>(user)/md-share--cms")]
     PF["Cloudflare Pages Function<br/>/u/:owner/:repo/s/:key"]
     SPA["SPA Viewer<br/>(browser)"]
 
     Author -- "markdown file" --> CLI
     CLI -- "1. PUT encrypted JSON<br/>(AES-256-GCM + gzip)" --> GH
-    CLI -- "2. share URL<br/>#k=&lt;base64url key&gt;" --> Author
+    CLI -- "2. share URL<br/>#k=(base64url key)" --> Author
     Author -. "shares link" .-> Reader
 
     Reader -- "GET /u/:o/:r/s/:key" --> PF
@@ -141,15 +141,15 @@ sequenceDiagram
         Note over Crypto: 1. pako.gzip(md)<br/>2. AES-256-GCM encrypt<br/>   (fresh 12-byte IV, 128-bit tag)
         Crypto-->>CLI: { iv, ct }
         CLI->>CLI: deriveMetaFromMarkdown(md)<br/>→ plaintext title + description
-        CLI->>CLI: shareKey = sha256(md).slice(0,12)<br/>(or --update &lt;key&gt;)<br/>path = shares/&lt;XX&gt;/&lt;key&gt;.json
+        CLI->>CLI: shareKey = sha256(md).slice(0,12)<br/>(or --update [key])<br/>path = shares/[XX]/[key].json
         CLI->>GH: GET /repos/:repo/contents/:path<br/>(reuse SHA + created_at if exists)
         GH-->>CLI: existing file or 404
         CLI->>GH: PUT /repos/:repo/contents/:path<br/>{ v:1, title, description, alg, iv, ct }
         GH-->>CLI: commit OK
-        CLI-->>User: https://&lt;app&gt;/u/:o/:r/s/:key<br/>#k=&lt;base64url(key)&gt;
-    else fallback — short markdown, --no-short, no repo, &gt;100KB, or GH error
+        CLI-->>User: https://[app]/u/:o/:r/s/:key<br/>#k=[base64url(key)]
+    else fallback — short markdown, --no-short, no repo, over 100KB, or GH error
         CLI->>CLI: chunkMarkdown(md)<br/>each chunk → pako.gzip + base64url
-        CLI-->>User: https://&lt;app&gt;/#v1.&lt;data&gt;<br/>or #v1.NofM.&lt;data&gt; (multi-part)
+        CLI-->>User: https://[app]/#v1.[data]<br/>or #v1.NofM.[data] (multi-part)
     end
 
     CLI->>User: copy to clipboard (unless --no-copy)<br/>+ open in browser (if --open)
@@ -181,12 +181,12 @@ sequenceDiagram
     Note over Browser: #k=… stays client-side<br/>(fragment never sent on the wire)
     Browser->>PF: GET /u/:o/:r/s/:key
 
-    PF->>GHraw: GET /:o/:r/main/shares/&lt;XX&gt;/&lt;key&gt;.json
+    PF->>GHraw: GET /:o/:r/main/shares/[XX]/[key].json
     GHraw-->>PF: encrypted JSON { v, title, description, alg, iv, ct }
     PF->>PF: parseShareJson + deriveMeta
     PF->>Assets: fetch / (SPA index.html)
     Assets-->>PF: index.html
-    PF->>PF: strip default &lt;title&gt;<br/>inject &lt;title&gt; + og:* / twitter:* tags<br/>inject &lt;script&gt;window.__MD_ENCRYPTED = { iv, ct, key, owner, repo }&lt;/script&gt;
+    PF->>PF: strip default [title] tag<br/>inject [title] + og:* / twitter:* meta tags<br/>inject inline script setting window.__MD_ENCRYPTED = { iv, ct, key, owner, repo }
     PF-->>Browser: HTML (with ciphertext inline + social-preview meta)
 
     Note over Browser: Social crawlers (iMessage, Slack, …)<br/>stop here — only plaintext title/description visible
@@ -259,17 +259,17 @@ Historical KV-backed short links like `https://md-share-kut.pages.dev/s/<8charke
 
 ```mermaid
 flowchart TD
-    A[md-share &lt;file&gt;] --> B{--no-short?}
-    B -- yes --> F[Fragment URL<br/>#v1.&lt;gzip+b64&gt;]
-    B -- no --> C{tempUrl &gt; 1024 chars<br/>OR --always-short<br/>OR --update?}
+    A["md-share (file)"] --> B{--no-short?}
+    B -- yes --> F["Fragment URL<br/>#v1.(gzip+b64)"]
+    B -- no --> C{"tempUrl over 1024 chars<br/>OR --always-short<br/>OR --update?"}
     C -- no --> F
     C -- yes --> D{storage_repo<br/>configured?}
     D -- no --> F1[Fragment URL<br/>+ warning to run<br/>md-share init]
-    D -- yes --> E{markdown<br/>&gt; 100KB?}
+    D -- yes --> E{"markdown<br/>over 100KB?"}
     E -- yes --> F2[Fragment URL<br/>+ size warning]
     E -- no --> G{GitHub PUT<br/>succeeds?}
     G -- no --> F3[Fragment URL<br/>+ error log]
-    G -- yes --> H[Storage URL<br/>/u/:o/:r/s/:key#k=&lt;key&gt;]
+    G -- yes --> H["Storage URL<br/>/u/:o/:r/s/:key#k=(key)"]
 ```
 
 ---
@@ -361,7 +361,7 @@ flowchart TD
     F -- yes --> G{private:&nbsp;true<br/>OR new package?}
     G -- yes --> H[skip — log reason]
     H --> E
-    G -- no --> I[cd packages/&lt;pkg&gt;<br/>npm publish --access public]
+    G -- no --> I["cd packages/(pkg)<br/>npm publish --access public"]
     I -.->|2FA OTP prompt| J([User enters OTP])
     J --> E
 ```
