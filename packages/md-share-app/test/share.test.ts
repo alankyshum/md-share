@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseShareJson, deriveMeta } from '../functions/_meta';
+import { parseShareJson, deriveMeta } from '../src/worker/_meta';
 import { generateKey, encryptShare, decryptShare, bytesToBase64Url, serializeEncryptedShare } from '@alankyshum/share-crypto';
 import sampleShare from './fixtures/sample-share.json';
 

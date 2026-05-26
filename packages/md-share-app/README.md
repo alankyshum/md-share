@@ -1,6 +1,6 @@
 # @alankyshum/md-share-app
 
-A SvelteKit and Cloudflare Pages Single Page Application (SPA) designed to serve and decrypt secure, encrypted markdown files shared via the `md-share` CLI.
+A SvelteKit and Cloudflare Worker with Static Assets Single Page Application (SPA) designed to serve and decrypt secure, encrypted markdown files shared via the `md-share` CLI.
 
 ---
 

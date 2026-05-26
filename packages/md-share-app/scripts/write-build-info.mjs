@@ -19,6 +19,6 @@ export const version = ${JSON.stringify(pkg.version)};
 export const build_commit = ${JSON.stringify(commit)};
 `;
 
-const outputPath = path.resolve(__dirname, '../functions/_build-info.ts');
+const outputPath = path.resolve(__dirname, '../src/_build-info.ts');
 fs.writeFileSync(outputPath, content, 'utf8');
 console.log(`[write-build-info] Wrote version=${pkg.version}, commit=${commit} to ${outputPath}`);

@@ -18,14 +18,13 @@
     "share",
     "encryption",
     "sveltekit",
-    "cloudflare-pages"
+    "cloudflare-workers"
   ],
   "publishConfig": {
     "access": "public"
   },
   "files": [
     "src",
-    "functions",
     "static",
     "package.json",
     "svelte.config.js",
@@ -41,7 +40,8 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@alankyshum/markdown-renderer": "^1.0.1",
