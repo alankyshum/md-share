@@ -63,6 +63,9 @@ importers:
       tsup:
         specifier: ^8.0.2
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(typescript@5.9.3)(yaml@2.9.0)
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.4(@types/node@20.19.41)(jiti@2.7.0)(jsdom@29.1.1)(lightningcss@1.32.0)(yaml@2.9.0)
 
   packages/md-share-app:
     dependencies:

@@ -10,7 +10,7 @@
 //   section <name>
 //   Task name : [status,] [id,] (date | after id1 id2…), (duration | endDate)
 // Statuses: done | active | crit | milestone (any combination)
-// Durations: 1y | 1m | 1d | 1h | 30min | 30s
+//   Durations: 1y | 1mo | 1w | 1d | 1h | 1m (minutes) | 30min | 30s | 100ms
 
 import Gantt from 'frappe-gantt';
 // frappe-gantt's package.json doesn't expose CSS in `exports`, so we keep a local copy
@@ -37,13 +37,17 @@ interface ParsedGantt {
 }
 
 const STATUS_WORDS = new Set(['done', 'active', 'crit', 'critical', 'milestone']);
-const DUR_RE = /^(\d+)\s*(y|mo|m|w|d|h|min|s|ms)$/i;
-const DATE_RE = /^\d{4}-\d{1,2}-\d{1,2}$/;
+const DUR_RE = /^(\d+)\s*(y|mo|min|ms|m|w|d|h|s)$/i;
+const DATE_RE = /^\d{4}-\d{1,2}-\d{1,2}(?:[ T]\d{1,2}:\d{1,2}(?::\d{1,2})?)?$/;
 
 function parseDate(s: string, fmt: string): Date | null {
   // Currently only supports YYYY-MM-DD (default) and a few obvious variants.
   s = s.trim();
   let m: RegExpMatchArray | null;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/))) {
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0));
+    return isNaN(d.getTime()) ? null : d;
+  }
   if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) {
     const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
     return isNaN(d.getTime()) ? null : d;
@@ -61,6 +65,12 @@ function fmtDate(d: Date): string {
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
   const day = String(d.getUTCDate()).padStart(2, '0');
+  const hrs = String(d.getUTCHours()).padStart(2, '0');
+  const mins = String(d.getUTCMinutes()).padStart(2, '0');
+  const secs = String(d.getUTCSeconds()).padStart(2, '0');
+  if (d.getUTCHours() || d.getUTCMinutes() || d.getUTCSeconds()) {
+    return `${y}-${m}-${day} ${hrs}:${mins}:${secs}`;
+  }
   return `${y}-${m}-${day}`;
 }
 
@@ -73,9 +83,7 @@ function addDuration(start: Date, raw: string): Date | null {
   switch (unit) {
     case 'y': out.setUTCFullYear(out.getUTCFullYear() + n); break;
     case 'mo': out.setUTCMonth(out.getUTCMonth() + n); break;
-    case 'm': // mermaid "m" in duration means "minute" only when paired with something explicitly,
-              // but in practice "1m" is ambiguous — gantt uses "m" for month. We'll treat "m" as month.
-      out.setUTCMonth(out.getUTCMonth() + n); break;
+    case 'm': out.setUTCMinutes(out.getUTCMinutes() + n); break; // "m" = minutes per mermaid spec; "mo" for months
     case 'w': out.setUTCDate(out.getUTCDate() + n * 7); break;
     case 'd': out.setUTCDate(out.getUTCDate() + n); break;
     case 'h': out.setUTCHours(out.getUTCHours() + n); break;

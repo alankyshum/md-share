@@ -37,7 +37,8 @@
   ],
   "type": "module",
   "scripts": {
-    "build": "tsup"
+    "build": "tsup",
+    "test": "vitest run"
   },
   "exports": {
     ".": {
@@ -125,6 +126,7 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
-    "tsup": "^8.0.2"
+    "tsup": "^8.0.2",
+    "vitest": "^3.0.5"
   }
 }
