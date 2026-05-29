@@ -49,15 +49,22 @@ async function handleConfig(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleKeys(request: Request, env: Env): Promise<Response> {
+  const maptiler = env.MAPTILER_KEY || "";
+  const ors = env.ORS_KEY || "";
+
+  const cacheControl = (maptiler && ors)
+    ? 'public, max-age=86400, s-maxage=86400'
+    : 'no-store, must-revalidate';
+
   return new Response(
     JSON.stringify({
-      maptiler: env.MAPTILER_KEY || "",
-      ors: env.ORS_KEY || "",
+      maptiler,
+      ors,
     }),
     {
       headers: {
         'content-type': 'application/json',
-        'cache-control': 'public, max-age=86400, s-maxage=86400',
+        'cache-control': cacheControl,
       },
     }
   );
