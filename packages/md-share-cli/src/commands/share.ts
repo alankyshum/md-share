@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { requireGitHubToken } from '../auth/token.js';
 import { loadConfig } from '../config/load.js';
 import { lintMarkdown } from '../lint/index.js';
+import { smokeTestRender } from '../lint/render-smoke.js';
 import { getFile, putFile } from '../github/contents.js';
 import {
   generateKey,
@@ -92,6 +93,12 @@ export async function shareCommand(
   }
 
   // 2. Local markdown linting
+  //    Two layers:
+  //      a) Structural lint (cheap, synchronous): fence balance, frontmatter, etc.
+  //      b) Render smoke (jsdom + real parsers): catches mermaid syntax errors
+  //         and markmap render-time failures that structural lint cannot see.
+  //         This runs on BOTH first publish and `--update` so existing share
+  //         URLs are never overwritten with broken content.
   if (!options.noLint) {
     const errs = lintMarkdown(md);
     if (errs.length > 0) {
@@ -101,6 +108,21 @@ export async function shareCommand(
       }
       console.error('\nFix the issues or pass --no-lint to bypass.');
       process.exit(2);
+    }
+
+    try {
+      const smokeErrs = await smokeTestRender(md);
+      if (smokeErrs.length > 0) {
+        console.error('Render smoke test failed (would not render in browser):');
+        for (const e of smokeErrs) {
+          console.error(`  • L${e.startLine} [${e.kind}]: ${e.message}`);
+        }
+        console.error('\nFix the issues or pass --no-lint to bypass.');
+        process.exit(2);
+      }
+    } catch (e) {
+      // Smoke test infrastructure failure (e.g. jsdom not installed) — warn but don't block.
+      console.warn(`Warning: render smoke test skipped: ${(e as Error).message}`);
     }
   }
 

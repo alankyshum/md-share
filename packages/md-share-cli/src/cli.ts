@@ -7,6 +7,7 @@ import { loginCommand } from './commands/login.js';
 import { listCommand } from './commands/list.js';
 import { searchCommand } from './commands/search.js';
 import { deleteCommand } from './commands/delete.js';
+import { lintFileCommand } from './commands/lint.js';
 import { fixMermaidMarkdown } from './mermaid-fix.js';
 
 // Read version from package.json
@@ -87,6 +88,16 @@ program
   .option('--storage-repo <owner/repo>', 'Override storage repository')
   .action(async (keyOrUrl, options) => {
     await deleteCommand(keyOrUrl, options);
+  });
+
+// Subcommand: lint
+program
+  .command('lint')
+  .description('Run structural + render smoke lint without uploading. Fails on first error.')
+  .argument('<file>', 'Markdown file (or "-" for stdin)')
+  .option('--skip-smoke', 'Skip jsdom render smoke test (structural lint only)', false)
+  .action(async (file, options) => {
+    await lintFileCommand(file, options);
   });
 
 // Subcommand: mermaid-fix
