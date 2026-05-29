@@ -12,6 +12,7 @@ import {
   base64UrlToBytes,
 } from '@alankyshum/share-crypto';
 import { getShareKey } from '../utils/crypto.js';
+import { getManifestKey, saveManifestEntry } from '../config/manifest.js';
 import { deriveMetaFromMarkdown } from '../utils/meta.js';
 import { encodeChunk } from '../encoding.js';
 import { chunkMarkdown } from '../chunking.js';
@@ -61,6 +62,9 @@ export async function shareCommand(
     open?: boolean;
     copy?: boolean;
     noCopy?: boolean;
+    // commander negated flags: --no-lint => lint:false, --no-short => short:false
+    lint?: boolean;
+    short?: boolean;
     stats?: boolean;
     printOnly?: boolean;
     noShort?: boolean;
@@ -99,7 +103,7 @@ export async function shareCommand(
   //         and markmap render-time failures that structural lint cannot see.
   //         This runs on BOTH first publish and `--update` so existing share
   //         URLs are never overwritten with broken content.
-  if (!options.noLint) {
+  if (options.lint !== false && !options.noLint) {
     const errs = lintMarkdown(md);
     if (errs.length > 0) {
       console.error('Markdown failed lint checks:');
@@ -134,7 +138,7 @@ export async function shareCommand(
   // --update forces always-short and disables --no-short
   let updateKey: string | null = null;
   let existingKeyBytes: Uint8Array | null = null;
-  let isNoShort = !!options.noShort;
+  let isNoShort = options.short === false || !!options.noShort;
   let isAlwaysShort = !!options.alwaysShort;
 
   if (options.update) {
@@ -145,18 +149,38 @@ export async function shareCommand(
     }
     updateKey = parsed.shareKey;
 
-    if (parsed.existingKeyB64) {
+    // Resolve the existing AES key for a stable update, in priority order:
+    //   1. the `#k=` fragment from the passed URL (explicit, always wins)
+    //   2. the local manifest (~/.config/md-share/manifest.json) keyed by shareKey
+    // This lets `md-share file.md --update <bareKey>` reuse the saved key without
+    // the caller having to remember the `#k=` fragment.
+    let resolvedKeyB64: string | undefined = parsed.existingKeyB64;
+    let keySource: 'url' | 'manifest' | undefined = parsed.existingKeyB64 ? 'url' : undefined;
+
+    if (!resolvedKeyB64 && !options.rotateKey) {
+      const fromManifest = getManifestKey(parsed.shareKey);
+      if (fromManifest) {
+        resolvedKeyB64 = fromManifest;
+        keySource = 'manifest';
+      }
+    }
+
+    if (resolvedKeyB64) {
       try {
-        existingKeyBytes = base64UrlToBytes(parsed.existingKeyB64);
+        existingKeyBytes = base64UrlToBytes(resolvedKeyB64);
       } catch (e) {
         console.error(`Error: Failed to decode existing key from base64url: ${(e as Error).message}`);
         process.exit(1);
       }
+      if (keySource === 'manifest') {
+        console.error(`\x1b[2m↻ Reusing saved key from manifest for share ${parsed.shareKey}\x1b[0m`);
+      }
     }
 
-    if (!parsed.existingKeyB64 && !options.rotateKey) {
+    if (!resolvedKeyB64 && !options.rotateKey) {
       console.error(
-        `Error: --update was passed but the URL does not contain '#k=<key>'.\n` +
+        `Error: --update was passed but no decryption key is available.\n` +
+        `No '#k=<key>' fragment in the URL and no saved key in the manifest for this share.\n` +
         `Without the existing key, updating will rotate the decryption key and break every existing link to this share.\n` +
         `Either:\n` +
         `  - Pass the FULL share URL including the '#k=…' fragment, OR\n` +
@@ -275,6 +299,16 @@ export async function shareCommand(
       urls = [finalUrl];
       chunks = [md];
       isShortUrl = true;
+
+      // Persist shareKey -> key so future `--update` (even with just a bare key
+      // or no `#k=` fragment) reuses the SAME key and never breaks existing links.
+      saveManifestEntry(shareKey, {
+        key: keyBase64Url,
+        url: finalUrl,
+        title,
+        storage_repo: storageRepo,
+        updated_at: new Date().toISOString(),
+      });
     } catch (e) {
       console.error(`\x1b[31mError writing encrypted share to GitHub: ${(e as Error).message}\x1b[0m`);
       console.error('Falling back to offline fragment URL...');

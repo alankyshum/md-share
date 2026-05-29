@@ -206,3 +206,53 @@ describe('URL and key parsing', () => {
     expect(bareKey).toBe('123456abcdef');
   });
 });
+
+describe('Share manifest (stable per-share key)', () => {
+  const CONFIG_DIR = path.join(os.homedir(), '.config', 'md-share');
+  const MANIFEST_PATH = path.join(CONFIG_DIR, 'manifest.json');
+  let backup: string | null = null;
+
+  beforeEach(() => {
+    if (fs.existsSync(MANIFEST_PATH)) {
+      backup = fs.readFileSync(MANIFEST_PATH, 'utf8');
+      fs.unlinkSync(MANIFEST_PATH);
+    } else {
+      backup = null;
+    }
+  });
+
+  afterEach(() => {
+    if (backup !== null) {
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+      fs.writeFileSync(MANIFEST_PATH, backup, 'utf8');
+    } else if (fs.existsSync(MANIFEST_PATH)) {
+      fs.unlinkSync(MANIFEST_PATH);
+    }
+  });
+
+  it('returns undefined for an unknown share key', async () => {
+    const { getManifestKey } = await import('../src/config/manifest.js');
+    expect(getManifestKey('deadbeef0000')).toBeUndefined();
+  });
+
+  it('round-trips a saved shareKey -> key entry', async () => {
+    const { getManifestKey, saveManifestEntry, loadManifest } = await import('../src/config/manifest.js');
+    saveManifestEntry('abc123def456', {
+      key: 'TEST_KEY_b64url',
+      url: 'https://example.com/u/o/r/s/abc123def456#k=TEST_KEY_b64url',
+      title: 'T',
+      updated_at: new Date().toISOString(),
+    });
+    expect(getManifestKey('abc123def456')).toBe('TEST_KEY_b64url');
+    expect(loadManifest().version).toBe(1);
+  });
+
+  it('upserts (overwrites key) without losing other shares', async () => {
+    const { getManifestKey, saveManifestEntry } = await import('../src/config/manifest.js');
+    saveManifestEntry('aaaaaaaaaaaa', { key: 'K1' });
+    saveManifestEntry('bbbbbbbbbbbb', { key: 'K2' });
+    saveManifestEntry('aaaaaaaaaaaa', { key: 'K1_NEW' });
+    expect(getManifestKey('aaaaaaaaaaaa')).toBe('K1_NEW');
+    expect(getManifestKey('bbbbbbbbbbbb')).toBe('K2');
+  });
+});
