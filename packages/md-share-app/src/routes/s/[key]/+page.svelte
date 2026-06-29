@@ -9,6 +9,7 @@
   import Frontmatter from '$lib/Frontmatter.svelte';
   import FullscreenViewer from '$lib/FullscreenViewer.svelte';
   import { installSelectionMenu } from '$lib/selection-menu';
+  import { installAnchorNav, scrollToDeepLink } from '$lib/anchor-nav';
 
   let mode: 'render' | 'loading' | 'error' = $state('loading');
   let errorMsg = $state('');
@@ -19,6 +20,7 @@
   let stats = $state<ReturnType<typeof computeStats> | null>(null);
   let contentReady = $state(false);
   let rawMarkdown = $state('');
+  let deepLinkScrolled = false;
 
   // Fullscreen viewer state
   let viewerOpen = $state(false);
@@ -67,6 +69,7 @@
       await renderMarkdown(content, renderTarget, dark, { lineOffset: contentStartLine });
       contentReady = true;
       attachClickHandlers();
+      if (!deepLinkScrolled) { deepLinkScrolled = true; scrollToDeepLink(); }
     }
   }
 
@@ -74,6 +77,9 @@
     // Selection menu — uses /s/<key> or /u/<owner>/<repo>/s/<key> from URL as page identifier
     const keyMatch = location.pathname.match(/(?:\/s\/|\/u\/[^\/]+\/[^\/]+\/s\/)([0-9a-f]{8,64})\b/);
     installSelectionMenu({ pageKey: keyMatch ? keyMatch[1] : null });
+
+    // Preserve the #k= AES key when navigating in-page headings / TOC.
+    installAnchorNav();
 
     watchTheme(dark => {
       isDark = dark;

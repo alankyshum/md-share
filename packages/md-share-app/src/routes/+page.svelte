@@ -9,6 +9,7 @@
   import Frontmatter from '$lib/Frontmatter.svelte';
   import FullscreenViewer from '$lib/FullscreenViewer.svelte';
   import { installSelectionMenu } from '$lib/selection-menu';
+  import { installAnchorNav, scrollToDeepLink } from '$lib/anchor-nav';
 
   let mode: 'render' | 'landing' | 'error' = $state('landing');
   let errorMsg = $state('');
@@ -19,6 +20,7 @@
   let frontmatter: Record<string, string> | null = $state(null);
   let stats = $state<ReturnType<typeof computeStats> | null>(null);
   let contentReady = $state(false);
+  let deepLinkScrolled = false;
 
   // Fullscreen viewer state
   let viewerOpen = $state(false);
@@ -66,12 +68,16 @@
       await renderMarkdown(content, renderTarget, dark, { lineOffset: contentStartLine });
       contentReady = true;
       attachClickHandlers();
+      if (!deepLinkScrolled) { deepLinkScrolled = true; scrollToDeepLink(); }
     }
   }
 
   onMount(() => {
     // Selection menu — fragment-URL route has no short key, so we use null
     installSelectionMenu({ pageKey: null });
+
+    // Preserve the #k= AES key when navigating in-page headings / TOC.
+    installAnchorNav();
 
     watchTheme(dark => {
       isDark = dark;
