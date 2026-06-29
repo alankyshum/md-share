@@ -1,6 +1,6 @@
 // Selection menu — when user selects text in the rendered markdown,
 // show a floating menu with "Add context to LLM" action that copies:
-//   [page <key>, lines <start>-<end>]
+//   [source <full-share-url-with-#k=>, lines <start>-<end>]
 //   <selected text>
 // to the clipboard. Mobile-friendly (positions menu within viewport).
 
@@ -152,7 +152,10 @@ async function copyForLLM() {
   const lineFrag = lastLineRange
     ? `lines ${lastLineRange.start}${lastLineRange.start !== lastLineRange.end ? '-' + lastLineRange.end : ''}`
     : 'no line info';
-  const pageFrag = opts.pageKey ? `page ${opts.pageKey}` : (location.pathname + location.search);
+  // Reference the full shareable URL (including the #k= AES-key fragment) so the
+  // pasted prompt actually points the reader's agent at this document — an opaque
+  // page id alone gives the LLM no way to know what's being referenced.
+  const pageFrag = `source ${location.href}`;
   const header = `[${pageFrag}, ${lineFrag}]`;
   const body = `${header}\n${lastSelectionText}`;
   await navigator.clipboard.writeText(body);
