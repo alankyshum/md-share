@@ -48,6 +48,7 @@ export async function renderMarkmaps(target: HTMLElement): Promise<void> {
       const mm = Markmap.create(svg as SVGSVGElement, undefined, root);
       (block as any).__markmapRoot = root;
       (block as any).__markmapInstance = mm;
+      block.dataset.markmapRendered = 'true';
 
       // Re-fit on container resize so the diagram reflows when the layout
       // settles (e.g. the parent grew after fonts loaded, sidebar collapsed,

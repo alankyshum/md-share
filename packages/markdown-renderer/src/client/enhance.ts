@@ -40,6 +40,7 @@ function sweepUnrenderedBlocks(target: HTMLElement): void {
     if (!hasSvg && !processed) candidates.push({ el, kind: 'mermaid' });
   });
   target.querySelectorAll<HTMLElement>('.markmap').forEach((el) => {
+    if ((el as any).__markmapInstance || el.dataset.markmapRendered === 'true') return;
     const svg = el.querySelector('svg');
     if (!svg || svg.childElementCount === 0) candidates.push({ el, kind: 'markmap' });
   });
