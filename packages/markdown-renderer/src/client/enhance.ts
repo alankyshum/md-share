@@ -28,7 +28,7 @@ function tagFailedBlocks(target: HTMLElement, selector: string, handler: Handler
  *
  * Detection rules:
  *   - `.mermaid` without inner `<svg>` AND without `data-processed` → unrendered
- *   - `.markmap` without inner `<svg>` having children → unrendered
+ *   - `div.markmap[data-source]` without inner `<svg>` having children → unrendered
  *   - `.custom-map` with no child elements → unrendered (map renderer mounts canvas/img)
  */
 function sweepUnrenderedBlocks(target: HTMLElement): void {
@@ -39,7 +39,16 @@ function sweepUnrenderedBlocks(target: HTMLElement): void {
     const processed = el.dataset.processed === 'true';
     if (!hasSvg && !processed) candidates.push({ el, kind: 'mermaid' });
   });
-  target.querySelectorAll<HTMLElement>('.markmap').forEach((el) => {
+  // Only inspect the wrapper blocks we created (`div.markmap[data-source]`).
+  // NOTE: markmap-view gives its OWN rendered root `<svg>` the class `markmap`
+  // (e.g. `<svg class="markmap mm-...">`). A bare `.markmap` selector therefore
+  // also matches that inner svg — which has no nested `<svg>` — and would card a
+  // perfectly-rendered markmap. Scoping to `div.markmap[data-source]` excludes it.
+  target.querySelectorAll<HTMLElement>('div.markmap[data-source]').forEach((el) => {
+    // The markmap handler renders/fits asynchronously (see renderMarkmaps).
+    // Once it has taken ownership of a block it sets __markmapInstance and
+    // data-markmap-rendered; never card such a block just because its first
+    // async fit has not populated the <svg> yet.
     if ((el as any).__markmapInstance || el.dataset.markmapRendered === 'true') return;
     const svg = el.querySelector('svg');
     if (!svg || svg.childElementCount === 0) candidates.push({ el, kind: 'markmap' });

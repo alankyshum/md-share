@@ -70,8 +70,8 @@ importers:
   packages/md-share-app:
     dependencies:
       '@alankyshum/markdown-renderer':
-        specifier: ^1.0.1
-        version: 1.0.2(chart.js@4.5.1)(chartjs-plugin-annotation@3.1.0(chart.js@4.5.1))(frappe-gantt@1.2.2)(highlight.js@11.11.1)(js-yaml@4.1.1)(maplibre-gl@4.7.1)(marked@15.0.12)(markmap-lib@0.18.12(markmap-common@0.18.9))(markmap-view@0.18.12(markmap-common@0.18.9))(mermaid@11.15.0)(tabulator-tables@6.4.0)
+        specifier: ^1.0.3
+        version: 1.0.3(chart.js@4.5.1)(chartjs-plugin-annotation@3.1.0(chart.js@4.5.1))(frappe-gantt@1.2.2)(highlight.js@11.11.1)(js-yaml@4.1.1)(maplibre-gl@4.7.1)(marked@15.0.12)(markmap-lib@0.18.12(markmap-common@0.18.9))(markmap-view@0.18.12(markmap-common@0.18.9))(mermaid@11.15.0)(tabulator-tables@6.4.0)
       '@alankyshum/share-crypto':
         specifier: ^1.0.0
         version: 1.0.0
@@ -222,8 +222,8 @@ importers:
 
 packages:
 
-  '@alankyshum/markdown-renderer@1.0.2':
-    resolution: {integrity: sha512-+GimztM5Qs3ZTU+/Gwh+U6VEHx5wnkd3uCdU46TiJ3922IKFaDX6KwXQ0J8ZbXkyXsPc8fjYeqU8P5cdTWaPhg==}
+  '@alankyshum/markdown-renderer@1.0.3':
+    resolution: {integrity: sha512-lnRm9WnD1uHWtHVZ1PJ5sNVgteKFHVFPqs5y+I+2OrnvFtSrPmEmhTExOVyxJfH1+U9U9pQoiiJUYVRpHSeVmA==}
     peerDependencies:
       chart.js: '*'
       chartjs-plugin-annotation: '*'
@@ -2814,7 +2814,7 @@ packages:
 
 snapshots:
 
-  '@alankyshum/markdown-renderer@1.0.2(chart.js@4.5.1)(chartjs-plugin-annotation@3.1.0(chart.js@4.5.1))(frappe-gantt@1.2.2)(highlight.js@11.11.1)(js-yaml@4.1.1)(maplibre-gl@4.7.1)(marked@15.0.12)(markmap-lib@0.18.12(markmap-common@0.18.9))(markmap-view@0.18.12(markmap-common@0.18.9))(mermaid@11.15.0)(tabulator-tables@6.4.0)':
+  '@alankyshum/markdown-renderer@1.0.3(chart.js@4.5.1)(chartjs-plugin-annotation@3.1.0(chart.js@4.5.1))(frappe-gantt@1.2.2)(highlight.js@11.11.1)(js-yaml@4.1.1)(maplibre-gl@4.7.1)(marked@15.0.12)(markmap-lib@0.18.12(markmap-common@0.18.9))(markmap-view@0.18.12(markmap-common@0.18.9))(mermaid@11.15.0)(tabulator-tables@6.4.0)':
     dependencies:
       marked: 15.0.12
     optionalDependencies:

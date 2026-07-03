@@ -1,4 +1,7 @@
 packages:
   - 'packages/*'
-allowBuilds:
-  esbuild: set this to true or false
+minimumReleaseAgeExclude:
+  - '@alankyshum/markdown-renderer@1.0.3'
+onlyBuiltDependencies:
+  - esbuild
+  - lefthook

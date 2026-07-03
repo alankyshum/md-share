@@ -1,6 +1,6 @@
 {
   "name": "@alankyshum/markdown-renderer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Framework-agnostic markdown renderer with interactive tables, charts, gantt, mindmaps, and maps. Powers md-share.",
   "license": "MIT",
   "author": "Alan Shum",

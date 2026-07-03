@@ -44,7 +44,7 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@alankyshum/markdown-renderer": "^1.0.1",
+    "@alankyshum/markdown-renderer": "^1.0.3",
     "@alankyshum/share-crypto": "^1.0.0",
     "chart.js": "^4.5.1",
     "chartjs-plugin-annotation": "^3.1.0",
