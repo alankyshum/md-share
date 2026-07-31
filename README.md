@@ -40,7 +40,7 @@ See [§5 Data Flow](#5-data-flow) for step-by-step sequence diagrams of how the 
 
 ## 2. Quickstart — Shared Canonical Deployment
 
-Use the pre-deployed public client at `https://share.alanshum.org` to share your notes instantly. *Note: If the canonical URL currently serves legacy routes, it may require a manual Cloudflare Worker deployment trigger from the master branch to fully reflect the latest SPA.*
+Use the pre-deployed public client at `https://share.alanshum.dev` to share your notes instantly. *Note: If the canonical URL currently serves legacy routes, it may require a manual Cloudflare Worker deployment trigger from the master branch to fully reflect the latest SPA.*
 
 ```bash
 # 1. Install the CLI globally
@@ -57,7 +57,7 @@ md-share README.md
 ```
 
 The CLI will encrypt the file, upload it as an idempotent JSON schema to your storage repo, and output a shareable URL similar to:
-`https://share.alanshum.org/u/<owner>/<repo>/s/<key>#k=<base64url_key>`
+`https://share.alanshum.dev/u/<owner>/<repo>/s/<key>#k=<base64url_key>`
 
 ---
 

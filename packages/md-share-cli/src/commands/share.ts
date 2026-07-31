@@ -132,7 +132,7 @@ export async function shareCommand(
 
   // 3. Setup configurations
   const config = loadConfig();
-  const appBaseUrl = options.appUrl || options.base || config.app_base_url || 'https://share.alanshum.org';
+  const appBaseUrl = options.appUrl || options.base || config.app_base_url || 'https://share.alanshum.dev';
   const storageRepo = options.storageRepo || config.storage_repo;
 
   // --update forces always-short and disables --no-short

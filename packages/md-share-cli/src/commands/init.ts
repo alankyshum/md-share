@@ -27,7 +27,7 @@ export async function initCommand(options: {
       return;
     } else {
       console.log('[DRY RUN] Initializing md-share configuration...');
-      console.log('[DRY RUN] App Base URL: https://share.alanshum.org');
+      console.log('[DRY RUN] App Base URL: https://share.alanshum.dev');
       console.log(`[DRY RUN] Storage Repo Name: ${options.storageName || 'md-share--cms'}`);
       console.log('[DRY RUN] Would initiate GitHub authentication and bootstrap storage repo.');
       return;
@@ -40,7 +40,7 @@ export async function initCommand(options: {
 
   try {
     const existingConfig = loadConfig();
-    let appBaseUrl = existingConfig.app_base_url || 'https://share.alanshum.org';
+    let appBaseUrl = existingConfig.app_base_url || 'https://share.alanshum.dev';
     let isSelfHost = options.selfHost || false;
 
     if (!isSelfHost) {

@@ -169,7 +169,7 @@ describe('URL and key parsing', () => {
   });
 
   it('should parse full URL with fragment key', () => {
-    const url = 'https://share.alanshum.org/u/alankyshum/md-share--cms/s/7bafd34fb516#k=FvZpVR3xg_d3-VdU-s-Ps2an1l9C5fdZloqIx__OAKM';
+    const url = 'https://share.alanshum.dev/u/alankyshum/md-share--cms/s/7bafd34fb516#k=FvZpVR3xg_d3-VdU-s-Ps2an1l9C5fdZloqIx__OAKM';
     const result = parseUpdateTarget(url);
     expect(result).toEqual({
       shareKey: '7bafd34fb516',
@@ -178,7 +178,7 @@ describe('URL and key parsing', () => {
   });
 
   it('should parse URL without fragment key', () => {
-    const urlNoFrag = 'https://share.alanshum.org/u/owner/repo/s/abc123def456';
+    const urlNoFrag = 'https://share.alanshum.dev/u/owner/repo/s/abc123def456';
     const resultNoFrag = parseUpdateTarget(urlNoFrag);
     expect(resultNoFrag).toEqual({
       shareKey: 'abc123def456',

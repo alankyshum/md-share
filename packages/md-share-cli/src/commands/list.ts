@@ -77,7 +77,7 @@ export async function listCommand(options: {
 }): Promise<void> {
   const config = loadConfig();
   const storageRepo = options.storageRepo || config.storage_repo;
-  const appBaseUrl = options.appUrl || config.app_base_url || 'https://share.alanshum.org';
+  const appBaseUrl = options.appUrl || config.app_base_url || 'https://share.alanshum.dev';
 
   if (!storageRepo) {
     console.error(
