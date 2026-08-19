@@ -7,6 +7,49 @@ export interface Env {
   MAPTILER_KEY?: string;
   ORS_KEY?: string;
   MD_SHARE_DEPLOYMENT_TYPE?: string;
+  // Optional GitHub token used to fetch share blobs via the authenticated
+  // Contents API (5000 req/h) instead of anonymous raw.githubusercontent.com
+  // (60 req/h, shared across Cloudflare's egress IPs → intermittent 429s).
+  // When unset, falls back to the anonymous raw endpoint so self-hosters
+  // without a token keep working.
+  GITHUB_PAT?: string;
+}
+
+// Fetch a share JSON blob from GitHub.
+//
+// With env.GITHUB_PAT set we hit the authenticated Contents API
+// (api.github.com/.../contents/... + Accept: application/vnd.github.raw),
+// which returns the raw file bytes and is billed against the token's
+// 5000 req/h authenticated budget with proper per-token rate limiting.
+//
+// Without a token we fall back to raw.githubusercontent.com (anonymous,
+// CDN-throttled per source IP). Cloudflare edge-caches the subrequest to
+// dedupe cold misses across the shared egress pool.
+async function fetchShareBlob(
+  owner: string,
+  repo: string,
+  key: string,
+  env: Env
+): Promise<Response> {
+  const prefix = key.slice(0, 2);
+  const path = `shares/${prefix}/${key}.json`;
+  const cf = { cacheEverything: true, cacheTtl: 300 } as const;
+
+  if (env.GITHUB_PAT) {
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    return fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${env.GITHUB_PAT}`,
+        Accept: 'application/vnd.github.raw',
+        'User-Agent': 'md-share-app',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+      cf,
+    });
+  }
+
+  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`;
+  return fetch(rawUrl, { cf });
 }
 
 const SHARE_ROUTE = new URLPattern({ pathname: '/u/:owner/:repo/s/:key' });
@@ -79,10 +122,7 @@ async function handleShare(request: Request, env: Env, params: Record<string, st
     return new Response('Invalid request parameters', { status: 400 });
   }
 
-  const prefix = key.slice(0, 2);
-  const ghUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/shares/${prefix}/${key}.json`;
-
-  const ghResponse = await fetch(ghUrl);
+  const ghResponse = await fetchShareBlob(owner, repo, key, env);
   if (ghResponse.status === 404) {
     return new Response(
       '<!doctype html><html><head><title>Not found</title></head><body><h1>Snippet not found or expired</h1></body></html>',
@@ -161,10 +201,7 @@ async function handleOg(request: Request, env: Env, params: Record<string, strin
     return new Response('Invalid request parameters', { status: 400 });
   }
 
-  const prefix = key.slice(0, 2);
-  const ghUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/shares/${prefix}/${key}.json`;
-
-  const ghResponse = await fetch(ghUrl);
+  const ghResponse = await fetchShareBlob(owner, repo, key, env);
   if (ghResponse.status === 404) {
     return new Response('Snippet not found or expired', { status: 404 });
   }
