@@ -54,4 +54,15 @@ describe('public expiry publication', () => {
     await expect(shareCommand(undefined, { text: '# Test', lint: false, copy: false, short: false })).rejects.toThrow('cannot expire');
     expect(mocks.putFile).not.toHaveBeenCalled();
   });
+  it('updates legacy shares without retroactively assigning expiry', async () => {
+    const { shareCommand } = await import('../src/commands/share.js');
+    const { saveManifestEntry, loadManifest } = await import('../src/config/manifest.js');
+    const key = Buffer.alloc(32, 7).toString('base64url');
+    saveManifestEntry('aaaaaaaaaaaa', { key, storage_repo: 'example/shares' });
+    mocks.getFile.mockResolvedValue({ sha: 'fake-sha' });
+    await shareCommand(undefined, { text: '# Legacy', lint: false, copy: false, update: 'aaaaaaaaaaaa' });
+    expect(loadManifest().shares.aaaaaaaaaaaa.expires_at).toBeUndefined();
+    await expect(shareCommand(undefined, { text: '# Legacy', lint: false, copy: false, update: 'aaaaaaaaaaaa', expires: '7d' })).rejects.toThrow('retroactively');
+    expect(mocks.putFile).toHaveBeenCalledTimes(1);
+  });
 });
