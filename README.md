@@ -133,7 +133,7 @@ sequenceDiagram
     CLI->>Lint: lintMarkdown(md)
     Lint-->>CLI: errors? (exit 2 if any, unless --no-lint)
 
-    Note over CLI: encodeChunk(md) → tempUrl<br/>shouldShorten = isAlwaysShort OR tempUrl.length > 1024
+    Note over CLI: Historical publication flow (before expiry support)
 
     alt shouldShorten AND storage_repo configured AND md ≤ 100KB
         CLI->>Crypto: generateKey() → 32 random bytes
@@ -155,11 +155,13 @@ sequenceDiagram
     CLI->>User: copy to clipboard (unless --no-copy)<br/>+ open in browser (if --open)
 ```
 
+The preceding sequence is historical: current publication requires storage and fails instead of producing an offline fragment; expiry is recorded in the private manifest.
+
 Key invariants:
 
 - The 32-byte symmetric key **never leaves the author's machine** in any HTTP request body. It is only ever placed in the URL fragment, which browsers do not transmit.
 - `title` and `description` are **plaintext** in the JSON so OG cards and `md-share list` / `search` work without the key.
-- The 12-char `shareKey` is a deterministic SHA-256 prefix of the markdown — repeated `md-share` on unchanged content is idempotent.
+- The 12-char `shareKey` is a deterministic SHA-256 prefix of the markdown. A repeated new publish is refused; use `--update` with the original URL to preserve its key.
 - `--update <key|url>` forces the same `shareKey`, preserves the original `created_at`, and bumps `updated_at`.
 
 ### 5.2 Read — viewer decrypts and renders
@@ -248,7 +250,7 @@ The standard URL shape for secure storage shares:
 `https://<app_base_url>/u/<owner>/<repo>/s/<key>#k=<base64url_key>`
 
 ### Legacy Fragment Share (Offline/No-Storage)
-For ad-hoc shares without GitHub repository storage, the CLI can emit compressed fragment URLs:
+Older versions emitted compressed fragment URLs. The viewer can still read them, but the current CLI refuses to create them because they cannot expire:
 - **Single-part URL**: `https://<app_base_url>/#v1.<gzip+base64url(markdown)>`
 - **Multi-part URL**: `https://<app_base_url>/#v1.NofM.<gzip+base64url(chunk_markdown)>` (for large payloads up to ~100KB split across multiple links).
 
@@ -257,20 +259,7 @@ Historical KV-backed short links like `https://md-share-kut.pages.dev/s/<8charke
 
 ### Which URL shape does the CLI emit?
 
-```mermaid
-flowchart TD
-    A["md-share (file)"] --> B{--no-short?}
-    B -- yes --> F["Fragment URL<br/>#v1.(gzip+b64)"]
-    B -- no --> C{"tempUrl over 1024 chars<br/>OR --always-short<br/>OR --update?"}
-    C -- no --> F
-    C -- yes --> D{storage_repo<br/>configured?}
-    D -- no --> F1[Fragment URL<br/>+ warning to run<br/>md-share init]
-    D -- yes --> E{"markdown<br/>over 100KB?"}
-    E -- yes --> F2[Fragment URL<br/>+ size warning]
-    E -- no --> G{GitHub PUT<br/>succeeds?}
-    G -- no --> F3[Fragment URL<br/>+ error log]
-    G -- yes --> H["Storage URL<br/>/u/:o/:r/s/:key#k=(key)"]
-```
+New shares require GitHub storage and use the storage-backed URL. There is no offline fallback: a missing repository, oversized document or upload failure aborts publication. New shares expire after 365 days by default; `--expires <duration|date>` overrides this and `--purpose decision` selects seven days. The local private manifest records `expires_at`. Existing entries without it are never retroactively expired. The external daily `share-page-expiry` reaper removes expired storage shares; deletion may lag the deadline and does not erase ciphertext from Git history. Anyone holding the full URL can still recover historical ciphertext. `--print-only` keeps its URL-only stdout contract; expiry is written to stderr.
 
 ---
 
@@ -280,7 +269,7 @@ Execute commands with `--help` for additional flags (e.g., `md-share list --help
 
 | Command | Action | Key Flags |
 |---|---|---|
-| `md-share [file]` | Securely encrypt and share a markdown file (or stdin via `-`) | `--text`, `--no-copy`, `--stats`, `--no-short`, `--always-short`, `--update <key>`, `--no-lint` |
+| `md-share [file]` | Securely encrypt and share a markdown file (or stdin via `-`) | `--text`, `--no-copy`, `--stats`, `--expires <duration|date>`, `--purpose decision`, `--update <key>`, `--no-lint` |
 | `md-share init` | Bootstrap configuration, login, and provision storage repo | `--self-host`, `--project-name <name>` |
 | `md-share login` | Authenticate with GitHub via browser-based device flow | None |
 | `md-share init-storage` | Manually initialize/verify the GitHub storage repository | None |
@@ -381,7 +370,7 @@ The legacy `share--markdown` skill has been moved and renamed to `share--markdow
 - **Wrong key fragment**: If the key fragment `#k=...` is altered, missing, or corrupted, the viewer will display a decryption failure.
 - **GitHub API Rate Limits**: Listing or searching extensive shares might trigger rate limiting. Authenticated CLI commands receive generous rate-limit ceilings.
 - **Cloudflare Worker Deployment Fails**: Ensure your self-hosted Cloudflare Worker has authorized the `alankyshum/md-share` repository.
-- **Aggregation / Chunking issues**: If an offline share requires splitting into more than 100 URL chunks, the CLI will error. Please use standard storage mode instead.
+- **Storage required**: Existing offline fragment links remain readable, but new links require storage so expiry can be enforced.
 
 ---
 
