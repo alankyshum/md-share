@@ -26,6 +26,8 @@ export interface ManifestEntry {
   title?: string;
   storage_repo?: string;
   updated_at?: string;
+  expires_at?: string;
+  expiration_state?: 'pending' | 'active';
 }
 
 export interface Manifest {
@@ -38,17 +40,21 @@ export function manifestPath(): string {
 }
 
 export function loadManifest(): Manifest {
-  try {
-    if (fs.existsSync(MANIFEST_PATH)) {
-      const data = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
-      if (data && typeof data === 'object' && data.shares) {
-        return data as Manifest;
-      }
-    }
-  } catch {
-    // corrupt manifest -> start fresh rather than crash a share
+  if (!fs.existsSync(MANIFEST_PATH)) return { version: 1, shares: {} };
+  const data = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+  if (!data || typeof data !== 'object' || !data.shares || typeof data.shares !== 'object' || Array.isArray(data.shares)) {
+    throw new Error('Invalid share manifest; refusing to overwrite it');
   }
-  return { version: 1, shares: {} };
+  return data as Manifest;
+}
+
+/** Serialize publishers and the expiry reaper; no stale lock is reclaimed automatically. */
+export function acquireManifestLock(): () => void {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  const lock = path.join(CONFIG_DIR, '.share-page.lock');
+  try { fs.mkdirSync(lock, { mode: 0o700 }); }
+  catch { throw new Error('Share manifest is locked; inspect before retrying'); }
+  return () => fs.rmdirSync(lock);
 }
 
 /** Look up the saved AES key (base64url) for a share, if any. */
@@ -58,19 +64,17 @@ export function getManifestKey(shareKey: string): string | undefined {
 
 /** Upsert a share entry and persist with 0600 permissions. */
 export function saveManifestEntry(shareKey: string, entry: ManifestEntry): void {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  const m = loadManifest();
+  m.shares[shareKey] = { ...m.shares[shareKey], ...entry };
+  // Resolve a chezmoi symlink instead of replacing it; atomic rename is in the
+  // actual file's directory. Existing data is never truncated in place.
+  const destination = fs.existsSync(MANIFEST_PATH) ? fs.realpathSync(MANIFEST_PATH) : MANIFEST_PATH;
+  const temporary = `${destination}.${process.pid}.${Date.now()}.tmp`;
   try {
-    if (!fs.existsSync(CONFIG_DIR)) {
-      fs.mkdirSync(CONFIG_DIR, { recursive: true });
-    }
-    const m = loadManifest();
-    m.shares[shareKey] = { ...m.shares[shareKey], ...entry };
-    fs.writeFileSync(MANIFEST_PATH, JSON.stringify(m, null, 2), 'utf8');
-    try {
-      fs.chmodSync(MANIFEST_PATH, 0o600);
-    } catch {
-      // best-effort on platforms without chmod
-    }
-  } catch (e) {
-    console.error(`Warning: failed to write share manifest: ${(e as Error).message}`);
+    fs.writeFileSync(temporary, JSON.stringify(m, null, 2), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    fs.renameSync(temporary, destination);
+  } finally {
+    if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
   }
 }

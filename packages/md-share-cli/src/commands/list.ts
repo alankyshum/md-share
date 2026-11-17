@@ -1,6 +1,7 @@
 import { requireGitHubToken } from '../auth/token.js';
 import { loadConfig } from '../config/load.js';
 import { getRepoInfo, getRecursiveTree, getFile } from '../github/contents.js';
+import { loadManifest } from '../config/manifest.js';
 
 export interface ShareMetadata {
   key: string;
@@ -91,6 +92,7 @@ export async function listCommand(options: {
   try {
     console.log(`Fetching shares from \x1b[36m${storageRepo}\x1b[0m...`);
     const shares = await fetchAllShares(storageRepo, appBaseUrl, token);
+    const manifest = loadManifest();
 
     if (shares.length === 0) {
       console.log('No shares found.');
@@ -139,8 +141,10 @@ export async function listCommand(options: {
         ? s.title.slice(0, colWidths.title - 3) + '...'
         : s.title;
 
+      const local = manifest.shares[s.key];
+      const expiry = local?.storage_repo === storageRepo ? local.expires_at : undefined;
       console.log(
-        `${created.padEnd(colWidths.created)} | ${updated.padEnd(colWidths.updated)} | ${s.key.padEnd(colWidths.key)} | ${truncatedTitle.padEnd(colWidths.title)} | ${s.url}`
+        `${created.padEnd(colWidths.created)} | ${updated.padEnd(colWidths.updated)} | ${s.key.padEnd(colWidths.key)} | ${truncatedTitle.padEnd(colWidths.title)} | ${s.url} | expires: ${expiry || 'not set (legacy or unknown)'}`
       );
     }
   } catch (e) {

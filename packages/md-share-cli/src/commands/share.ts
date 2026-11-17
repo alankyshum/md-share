@@ -12,7 +12,8 @@ import {
   base64UrlToBytes,
 } from '@alankyshum/share-crypto';
 import { getShareKey } from '../utils/crypto.js';
-import { getManifestKey, saveManifestEntry } from '../config/manifest.js';
+import { getManifestKey, saveManifestEntry, loadManifest, acquireManifestLock } from '../config/manifest.js';
+import { expiry } from '../config/expiry.js';
 import { deriveMetaFromMarkdown } from '../utils/meta.js';
 import { encodeChunk } from '../encoding.js';
 import { chunkMarkdown } from '../chunking.js';
@@ -73,6 +74,8 @@ export async function shareCommand(
     update?: string;
     rotateKey?: boolean;
     noLint?: boolean;
+    expires?: string;
+    purpose?: string;
   }
 ): Promise<void> {
   // 1. Read markdown input
@@ -200,6 +203,10 @@ export async function shareCommand(
     isAlwaysShort = true;
   }
 
+  if (isNoShort) throw new Error('Offline fragment URLs cannot expire; --no-short is not supported for new shares');
+  const requestedExpiry = expiry(options.expires, options.purpose);
+  // Expiring shares must be revocable; never fall back to an offline fragment.
+  isAlwaysShort = true;
   const shortThreshold = options.shortThreshold || 1024;
 
   let urls: string[] = [];
@@ -216,14 +223,9 @@ export async function shareCommand(
 
   if (shouldShorten) {
     if (!storageRepo) {
-      console.warn(
-        '\x1b[33mWarning: No storage repository configured. Falling back to offline fragment URL.\x1b[0m'
-      );
-      console.warn("Please run 'md-share init' to configure a GitHub storage repository.\n");
-      shouldShorten = false;
+      throw new Error("No storage repository configured; run 'md-share init'");
     } else if (md.length > 100_000) {
-      console.warn('(markdown >100KB, shortener rejected — falling back to fragment URL)');
-      shouldShorten = false;
+      throw new Error('Markdown exceeds the 100KB storage limit; cannot create an expiring share');
     }
   }
 
@@ -235,13 +237,26 @@ export async function shareCommand(
       process.exit(1);
     }
 
+    const release = acquireManifestLock();
+    let publicationError: unknown;
     try {
+      const existingManifest = loadManifest();
+      const previous = updateKey ? existingManifest.shares[updateKey] : undefined;
+      if (previous?.expiration_state === 'pending') throw new Error('Pending publication requires manual inspection');
+      if (previous?.storage_repo && previous.storage_repo !== storageRepo) throw new Error('Manifest storage repository mismatch');
+      if (updateKey && !previous?.expires_at && (options.expires || options.purpose)) {
+        throw new Error('Refusing to retroactively expire a legacy share');
+      }
+      const expiresAt = updateKey ? (options.expires || options.purpose ? requestedExpiry : previous?.expires_at) : requestedExpiry;
       // Use existing key on --update (Path 1: stable per-share key), unless --rotate-key was set
       const keyBytes = (options.rotateKey ? null : existingKeyBytes) ?? await generateKey();
       if (keyBytes && keyBytes.length !== 32) {
         console.warn(`Warning: Decoded key is ${keyBytes.length} bytes, expected 32 bytes.`);
       }
       const keyBase64Url = bytesToBase64Url(keyBytes);
+      if (previous?.key && !options.rotateKey && previous.key !== keyBase64Url) {
+        throw new Error('Existing manifest key differs from the update key; refusing overwrite');
+      }
 
       // Encrypt
       const { iv, ct } = await encryptShare(md, keyBytes);
@@ -251,6 +266,9 @@ export async function shareCommand(
 
       // Determine Key and Target Path
       let shareKey = updateKey || getShareKey(md);
+      if (!updateKey && existingManifest.shares[shareKey]) {
+        throw new Error('Share already exists in the manifest; use --update with its existing URL');
+      }
       const path = `shares/${shareKey.slice(0, 2)}/${shareKey}.json`;
 
       let existingSha: string | undefined = undefined;
@@ -259,6 +277,7 @@ export async function shareCommand(
       // Check if file already exists
       const existingFile = await getFile(storageRepo, path, token);
       if (existingFile) {
+        if (!updateKey) throw new Error('Share already exists; use --update with its existing URL');
         existingSha = existingFile.sha;
         if (existingFile.content) {
           try {
@@ -270,8 +289,7 @@ export async function shareCommand(
           }
         }
       } else if (updateKey) {
-        console.error(`Error: --update ${updateKey} failed (share does not exist on GitHub)`);
-        process.exit(1);
+        throw new Error(`--update ${updateKey} failed (share does not exist on GitHub)`);
       }
 
       // Serialize Encrypted Share
@@ -282,6 +300,12 @@ export async function shareCommand(
         updated_at: new Date().toISOString(),
         iv,
         ct,
+      });
+
+      // Persist key and pending expiry before a new remote write. Pending records
+      // are not reaped automatically after an ambiguous publication outcome.
+      if (!updateKey) saveManifestEntry(shareKey, {
+        key: keyBase64Url, storage_repo: storageRepo, expires_at: expiresAt, expiration_state: 'pending',
       });
 
       // Write to GitHub
@@ -308,12 +332,15 @@ export async function shareCommand(
         title,
         storage_repo: storageRepo,
         updated_at: new Date().toISOString(),
+        ...(expiresAt ? { expires_at: expiresAt, expiration_state: 'active' as const } : {}),
       });
+      console.error(expiresAt ? `Expires: ${expiresAt}` : 'Expires: not set (legacy share)');
     } catch (e) {
-      console.error(`\x1b[31mError writing encrypted share to GitHub: ${(e as Error).message}\x1b[0m`);
-      console.error('Falling back to offline fragment URL...');
-      shouldShorten = false;
+      publicationError = e;
+    } finally {
+      release();
     }
+    if (publicationError) throw publicationError;
   }
 
   // 5. Fallback to offline fragment URL if needed

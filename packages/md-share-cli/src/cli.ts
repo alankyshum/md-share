@@ -168,6 +168,8 @@ program
   .option('--no-short', 'Always emit offline fragment URLs')
   .option('--always-short', 'Always write encrypted file to storage repo')
   .option('--short-threshold <N>', 'URL threshold for auto-shortening', (v) => parseInt(v, 10))
+  .option('--expires <duration-or-date>', 'Expiry duration or ISO date (default: 365d)')
+  .option('--purpose <purpose>', 'Use decision preset (7d)')
   .option('--update <key-or-url>', 'Overwrite an existing share')
   .option('--rotate-key', 'When updating, rotate the decryption key (breaks existing links). Default: reuse the existing key.')
   .option('--no-lint', 'Bypass local markdown linting')
