@@ -196,6 +196,24 @@ html, body {
 }
 
 /* ─── Tabulator (interactive tables) ───────────────────────────────────── */
+.markdown-body #article .markdown-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.markdown-body #article .markdown-table-scroll > table {
+  display: table;
+  width: 100%;
+  max-width: none;
+}
+/* CMS company logos use Google favicons; explicit logo alt text also works
+   for other image sources, without resizing ordinary table illustrations. */
+.markdown-body #article .markdown-table-scroll img[src^="https://www.google.com/s2/favicons?"],
+.markdown-body #article .markdown-table-scroll img[alt*="logo" i] {
+  width: 4rem;
+  height: 2.5rem;
+  object-fit: contain;
+}
 .tabulator-host {
   margin: 1.5em 0;
   border-radius: 6px;
@@ -218,6 +236,13 @@ html, body {
   /* Allow horizontal scroll inside the table holder if columns truly
      exceed available width. */
   overflow-x: auto !important;
+}
+/* Saved, manually narrowed columns must keep their widths. Extend the row
+   and header backgrounds instead of stretching those columns again. */
+.tabulator .tabulator-headers,
+.tabulator .tabulator-table,
+.tabulator .tabulator-row {
+  min-width: 100%;
 }
 .tabulator .tabulator-header {
   background: var(--bg-elevated) !important;

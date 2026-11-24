@@ -25,6 +25,14 @@ declare module 'tabulator-tables' {
     constructor(el: HTMLElement | string, options?: TabulatorOptions);
     destroy(): void;
     redraw(force?: boolean): void;
+    on(event: string, callback: () => void): void;
+    getColumns(): ColumnComponent[];
+  }
+  export interface ColumnComponent {
+    getDefinition(): { width?: number | string };
+    getWidth(): number;
+    isVisible(): boolean;
+    setWidth(width: number): void;
   }
   export class TabulatorFull extends Tabulator {}
 }

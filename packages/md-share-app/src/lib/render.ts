@@ -76,6 +76,15 @@ export async function renderMarkdown(
   }
   applyLineAttrs(target, tokens);
 
+  // Keep native tables scrollable within the reading column if enhancement is
+  // skipped or unavailable; enhanced tables use the same bounded container.
+  target.querySelectorAll('table').forEach(table => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'markdown-table-scroll';
+    table.replaceWith(wrapper);
+    wrapper.appendChild(table);
+  });
+
   await enhance(target, { dark });
 }
 

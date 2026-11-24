@@ -8,6 +8,7 @@
 
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
 import 'tabulator-tables/dist/css/tabulator.min.css';
+import { fillInitialTableWidth } from './table-layout.js';
 
 type ColType = 'currency' | 'number' | 'percent' | 'date' | 'boolean' | 'string';
 
@@ -307,7 +308,7 @@ export function enhanceTables(target: HTMLElement, dark: boolean) {
 
     const persistenceID = `mdshare-table-v2-${tableSignature(data.headers, data.rows[0]?.map(c => c.text) || [])}`;
 
-    new Tabulator(host, {
+    const enhanced = new Tabulator(host, {
       data: rowData,
       columns: inferredCols.map(buildTabulatorColumn),
       // 'fitData' sizes columns to their content (capped by maxInitialWidth
@@ -335,6 +336,8 @@ export function enhanceTables(target: HTMLElement, dark: boolean) {
       persistenceID,
       autoResize: true,
     });
+
+    enhanced.on('tableBuilt', () => fillInitialTableWidth(host, enhanced.getColumns()));
 
     (host as any).__enhanced = true;
   });

@@ -70,8 +70,8 @@ importers:
   packages/md-share-app:
     dependencies:
       '@alankyshum/markdown-renderer':
-        specifier: ^1.0.3
-        version: 1.0.3(chart.js@4.5.1)(chartjs-plugin-annotation@3.1.0(chart.js@4.5.1))(frappe-gantt@1.2.2)(highlight.js@11.11.1)(js-yaml@4.1.1)(maplibre-gl@4.7.1)(marked@15.0.12)(markmap-lib@0.18.12(markmap-common@0.18.9))(markmap-view@0.18.12(markmap-common@0.18.9))(mermaid@11.15.0)(tabulator-tables@6.4.0)
+        specifier: workspace:^
+        version: link:../markdown-renderer
       '@alankyshum/share-crypto':
         specifier: ^1.0.0
         version: 1.0.0
@@ -221,42 +221,6 @@ importers:
         version: 3.2.4(@types/node@20.19.41)(jiti@2.7.0)(jsdom@29.1.1)(lightningcss@1.32.0)(yaml@2.9.0)
 
 packages:
-
-  '@alankyshum/markdown-renderer@1.0.3':
-    resolution: {integrity: sha512-lnRm9WnD1uHWtHVZ1PJ5sNVgteKFHVFPqs5y+I+2OrnvFtSrPmEmhTExOVyxJfH1+U9U9pQoiiJUYVRpHSeVmA==}
-    peerDependencies:
-      chart.js: '*'
-      chartjs-plugin-annotation: '*'
-      frappe-gantt: '*'
-      highlight.js: ^11.0.0
-      js-yaml: ^4.0.0
-      maplibre-gl: ^4.0.0
-      marked: ^15.0.0
-      markmap-lib: '*'
-      markmap-view: '*'
-      mermaid: ^11.0.0
-      tabulator-tables: '*'
-    peerDependenciesMeta:
-      chart.js:
-        optional: true
-      chartjs-plugin-annotation:
-        optional: true
-      frappe-gantt:
-        optional: true
-      highlight.js:
-        optional: true
-      js-yaml:
-        optional: true
-      maplibre-gl:
-        optional: true
-      markmap-lib:
-        optional: true
-      markmap-view:
-        optional: true
-      mermaid:
-        optional: true
-      tabulator-tables:
-        optional: true
 
   '@alankyshum/share-crypto@1.0.0':
     resolution: {integrity: sha512-ClN2d5MP2tiCZxp/361JMPbK3Qb0qom/wcG3QLbvV0S4zYjq3iWBgHWsr6aJ6mgYfquZUrLMJS9vgv/kbYy+pw==}
@@ -2813,21 +2777,6 @@ packages:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
 snapshots:
-
-  '@alankyshum/markdown-renderer@1.0.3(chart.js@4.5.1)(chartjs-plugin-annotation@3.1.0(chart.js@4.5.1))(frappe-gantt@1.2.2)(highlight.js@11.11.1)(js-yaml@4.1.1)(maplibre-gl@4.7.1)(marked@15.0.12)(markmap-lib@0.18.12(markmap-common@0.18.9))(markmap-view@0.18.12(markmap-common@0.18.9))(mermaid@11.15.0)(tabulator-tables@6.4.0)':
-    dependencies:
-      marked: 15.0.12
-    optionalDependencies:
-      chart.js: 4.5.1
-      chartjs-plugin-annotation: 3.1.0(chart.js@4.5.1)
-      frappe-gantt: 1.2.2
-      highlight.js: 11.11.1
-      js-yaml: 4.1.1
-      maplibre-gl: 4.7.1
-      markmap-lib: 0.18.12(markmap-common@0.18.9)
-      markmap-view: 0.18.12(markmap-common@0.18.9)
-      mermaid: 11.15.0
-      tabulator-tables: 6.4.0
 
   '@alankyshum/share-crypto@1.0.0':
     dependencies:
