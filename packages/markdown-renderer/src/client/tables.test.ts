@@ -23,14 +23,27 @@ describe('initial table width', () => {
     expect(hidden.setWidth).not.toHaveBeenCalled();
   });
 
-  it('preserves persisted widths and does not shrink overflowing columns', () => {
+  it('fills spare space after restoring persisted widths, preserving earlier columns', () => {
     const saved = column(200, true);
-    const other = column(250);
+    const other = column(250, true);
+    const hidden = column(100, true, false);
+    fillInitialTableWidth(host, [saved, other, hidden]);
+    expect(saved.setWidth).not.toHaveBeenCalled();
+    expect(other.setWidth).toHaveBeenCalledWith(600);
+    expect(hidden.setWidth).not.toHaveBeenCalled();
+  });
+
+  it('does not shrink persisted columns that already fill or overflow the host', () => {
+    const saved = column(200, true);
+    const other = column(600, true);
     fillInitialTableWidth(host, [saved, other]);
+    expect(saved.setWidth).not.toHaveBeenCalled();
     expect(other.setWidth).not.toHaveBeenCalled();
-    const wide = column(850);
-    fillInitialTableWidth(host, [wide]);
-    expect(wide.setWidth).not.toHaveBeenCalled();
+
+    const overflow = column(650, true);
+    fillInitialTableWidth(host, [saved, overflow]);
+    expect(saved.setWidth).not.toHaveBeenCalled();
+    expect(overflow.setWidth).not.toHaveBeenCalled();
     fillInitialTableWidth(host, []);
   });
 });
