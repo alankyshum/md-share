@@ -214,6 +214,17 @@ html, body {
   height: 2.5rem;
   object-fit: contain;
 }
+/* Keep each logo above its company name without changing table cell layout. */
+.markdown-body #article .markdown-table-scroll :is(td, .tabulator-cell):has(img[src^="https://www.google.com/s2/favicons?"], img[alt*="logo" i]) {
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.markdown-body #article .markdown-table-scroll :is(td, .tabulator-cell) img[src^="https://www.google.com/s2/favicons?"],
+.markdown-body #article .markdown-table-scroll :is(td, .tabulator-cell) img[alt*="logo" i] {
+  display: block;
+  max-width: 100%;
+  margin-inline: auto;
+}
 .tabulator-host {
   margin: 1.5em 0;
   border-radius: 6px;
