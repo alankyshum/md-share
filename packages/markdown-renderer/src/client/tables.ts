@@ -8,7 +8,7 @@
 
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
 import 'tabulator-tables/dist/css/tabulator.min.css';
-import { fillInitialTableWidth } from './table-layout.js';
+import { fillInitialTableWidth, observeTableWidth } from './table-layout.js';
 
 type ColType = 'currency' | 'number' | 'percent' | 'date' | 'boolean' | 'string';
 
@@ -305,6 +305,7 @@ export function enhanceTables(target: HTMLElement, dark: boolean) {
     const host = document.createElement('div');
     host.className = 'tabulator-host';
     table.replaceWith(host);
+    const initiallyConnected = host.isConnected;
 
     const persistenceID = `mdshare-table-v2-${tableSignature(data.headers, data.rows[0]?.map(c => c.text) || [])}`;
 
@@ -337,7 +338,13 @@ export function enhanceTables(target: HTMLElement, dark: boolean) {
       autoResize: true,
     });
 
-    enhanced.on('tableBuilt', () => fillInitialTableWidth(host, enhanced.getColumns()));
+    enhanced.on('tableBuilt', () => {
+      // Rendering may have replaced this table while Tabulator was building.
+      if (initiallyConnected && !host.isConnected) return;
+      fillInitialTableWidth(host, enhanced.getColumns());
+      const cleanup = observeTableWidth(host, () => enhanced.getColumns());
+      enhanced.on('tableDestroyed', cleanup);
+    });
 
     (host as any).__enhanced = true;
   });
