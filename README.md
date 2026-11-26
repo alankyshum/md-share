@@ -261,6 +261,8 @@ Historical KV-backed short links like `https://md-share-kut.pages.dev/s/<8charke
 
 New shares require GitHub storage and use the storage-backed URL. There is no offline fallback: a missing repository, oversized document or upload failure aborts publication. New shares expire after 365 days by default; `--expires <duration|date>` overrides this and `--purpose decision` selects seven days. The local private manifest records `expires_at`. Existing entries without it are never retroactively expired. The external daily `share-page-expiry` reaper removes expired storage shares; deletion may lag the deadline and does not erase ciphertext from Git history. Anyone holding the full URL can still recover historical ciphertext. `--print-only` keeps its URL-only stdout contract; expiry is written to stderr.
 
+The CLI accepts up to 3,000,000 UTF-16 code units of markdown (approximately 3 MB for ASCII, including base64 image data). Encoded GitHub storage objects can be larger; Git history continues growing even after shares expire.
+
 ---
 
 ## 8. CLI Command Reference

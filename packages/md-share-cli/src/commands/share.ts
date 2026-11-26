@@ -21,6 +21,9 @@ import { copyToClipboard } from '../utils/clipboard.js';
 import { openInBrowser } from '../utils/browser.js';
 import { printStats } from '../utils/stats.js';
 
+// JavaScript string length is measured in UTF-16 code units, not bytes.
+export const MAX_MARKDOWN_LENGTH = 3_000_000;
+
 export function parseUpdateTarget(s: string): { shareKey: string; existingKeyB64?: string } | null {
   const trimmed = s.trim();
   // If it's a URL
@@ -97,6 +100,10 @@ export async function shareCommand(
   if (!md || !md.trim()) {
     console.error('Error: no markdown input provided');
     process.exit(1);
+  }
+
+  if (md.length > MAX_MARKDOWN_LENGTH) {
+    throw new Error(`Markdown exceeds the ${MAX_MARKDOWN_LENGTH.toLocaleString('en-US')} UTF-16 code unit storage limit; cannot create an expiring share`);
   }
 
   // 2. Local markdown linting
@@ -216,16 +223,18 @@ export async function shareCommand(
   // 4. Check if we should shorten (default/encrypted storage path)
   let shouldShorten = false;
   if (!isNoShort) {
-    const tempEnc = encodeChunk(md);
-    const tempUrl = `${appBaseUrl.replace(/\/$/, '')}/#v1.${tempEnc}`;
-    shouldShorten = isAlwaysShort || tempUrl.length > shortThreshold;
+    if (isAlwaysShort) {
+      shouldShorten = true;
+    } else {
+      const tempEnc = encodeChunk(md);
+      const tempUrl = `${appBaseUrl.replace(/\/$/, '')}/#v1.${tempEnc}`;
+      shouldShorten = tempUrl.length > shortThreshold;
+    }
   }
 
   if (shouldShorten) {
     if (!storageRepo) {
       throw new Error("No storage repository configured; run 'md-share init'");
-    } else if (md.length > 100_000) {
-      throw new Error('Markdown exceeds the 100KB storage limit; cannot create an expiring share');
     }
   }
 

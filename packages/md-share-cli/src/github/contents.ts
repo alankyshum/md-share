@@ -3,6 +3,7 @@ export interface GitHubFile {
   path: string;
   sha: string;
   content?: string; // base64
+  encoding?: string;
 }
 
 export interface TreeEntry {
@@ -25,10 +26,11 @@ async function githubRequest(
   url: string,
   method: string,
   token: string,
-  body?: any
+  body?: any,
+  accept = 'application/vnd.github.v3+json'
 ): Promise<any> {
   const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github.v3+json',
+    'Accept': accept,
     'User-Agent': 'md-share-cli/1.0.0',
     'Authorization': `Bearer ${token}`,
   };
@@ -80,7 +82,19 @@ export async function getFile(
   token: string
 ): Promise<GitHubFile | null> {
   const url = `https://api.github.com/repos/${repo}/contents/${path}`;
-  return githubRequest(url, 'GET', token);
+  const file: GitHubFile | null = await githubRequest(url, 'GET', token, undefined, 'application/vnd.github.object+json');
+  if (file && file.encoding === 'none') {
+    // The Contents API omits inline content for files over 1 MB. Keep the
+    // SHA from the object response, but retrieve the actual bytes as raw.
+    const res = await fetch(url, { headers: {
+      'Accept': 'application/vnd.github.raw+json',
+      'User-Agent': 'md-share-cli/1.0.0',
+      'Authorization': `Bearer ${token}`,
+    } });
+    if (!res.ok) throw new Error(`GitHub API error (${res.status} ${res.statusText}): ${await res.text()}`);
+    file.content = Buffer.from(await res.arrayBuffer()).toString('base64');
+  }
+  return file;
 }
 
 export async function putFile(

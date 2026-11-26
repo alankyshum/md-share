@@ -386,7 +386,7 @@ Trigger a new deployment if env vars don't propagate (`gh workflow run ...` or p
 
 **Lint failure** — `share-md.py` runs `scripts/md-lint.mjs` locally before upload and exits with code 2. Fix the reported errors or pass `--no-lint`.
 
-**`--update <key>` fails** — key must be 8 lowercase hex characters; auth token must be valid; payload < 100KB.
+**`--update <key>` fails** — key must be 12 lowercase hex characters; auth token must be valid; markdown must not exceed 3,000,000 UTF-16 code units.
 
 **Short URL 404** — KV entry expired (1y of inactivity) or wrong key. Re-run to generate a new short URL.
 

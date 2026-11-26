@@ -6,7 +6,6 @@ import { encodeChunk, decodeChunk } from '../src/encoding.js';
 import { chunkMarkdown, encodedLen, MAX_PAYLOAD } from '../src/chunking.js';
 import { getShareKey } from '../src/utils/crypto.js';
 import { deriveMetaFromMarkdown } from '../src/utils/meta.js';
-import { loadConfig, saveConfig } from '../src/config/load.js';
 import { parseUpdateTarget } from '../src/commands/share.js';
 import { parseKeyFromInput } from '../src/commands/delete.js';
 import { lintMarkdown } from '../src/lint/index.js';
@@ -75,45 +74,27 @@ describe('Key derivation & Metadata', () => {
 });
 
 describe('Config & Migration', () => {
-  const NEW_CONFIG_DIR = path.join(os.homedir(), '.config', 'md-share');
-  const NEW_CONFIG_PATH = path.join(NEW_CONFIG_DIR, 'config.json');
-
-  const LEGACY_CONFIG_DIR = path.join(os.homedir(), '.claude', 'skills', 'share--markdown');
-  const LEGACY_CONFIG_PATH = path.join(LEGACY_CONFIG_DIR, 'config.json');
-
-  let oldNewConfig: string | null = null;
-  let oldLegacyConfig: string | null = null;
+  let home: string;
+  let NEW_CONFIG_PATH: string;
+  let LEGACY_CONFIG_DIR: string;
+  let LEGACY_CONFIG_PATH: string;
 
   beforeEach(() => {
-    // Backup any existing configs
-    if (fs.existsSync(NEW_CONFIG_PATH)) {
-      oldNewConfig = fs.readFileSync(NEW_CONFIG_PATH, 'utf8');
-      fs.unlinkSync(NEW_CONFIG_PATH);
-    }
-    if (fs.existsSync(LEGACY_CONFIG_PATH)) {
-      oldLegacyConfig = fs.readFileSync(LEGACY_CONFIG_PATH, 'utf8');
-      fs.unlinkSync(LEGACY_CONFIG_PATH);
-    }
+    home = fs.mkdtempSync(path.join(os.homedir(), 'md-share-config-test-'));
+    NEW_CONFIG_PATH = path.join(home, '.config', 'md-share', 'config.json');
+    LEGACY_CONFIG_DIR = path.join(home, '.claude', 'skills', 'share--markdown');
+    LEGACY_CONFIG_PATH = path.join(LEGACY_CONFIG_DIR, 'config.json');
+    vi.spyOn(os, 'homedir').mockReturnValue(home);
+    vi.resetModules();
   });
 
   afterEach(() => {
-    // Restore backups
-    if (oldNewConfig !== null) {
-      fs.mkdirSync(NEW_CONFIG_DIR, { recursive: true });
-      fs.writeFileSync(NEW_CONFIG_PATH, oldNewConfig, 'utf8');
-    } else if (fs.existsSync(NEW_CONFIG_PATH)) {
-      fs.unlinkSync(NEW_CONFIG_PATH);
-    }
-
-    if (oldLegacyConfig !== null) {
-      fs.mkdirSync(LEGACY_CONFIG_DIR, { recursive: true });
-      fs.writeFileSync(LEGACY_CONFIG_PATH, oldLegacyConfig, 'utf8');
-    } else if (fs.existsSync(LEGACY_CONFIG_PATH)) {
-      fs.unlinkSync(LEGACY_CONFIG_PATH);
-    }
+    vi.restoreAllMocks();
+    fs.rmSync(home, { recursive: true, force: true });
   });
 
-  it('should migrate only base_url and never copy api_token', () => {
+  it('should migrate only base_url and never copy api_token', async () => {
+    const { loadConfig, saveConfig } = await import('../src/config/load.js');
     fs.mkdirSync(LEGACY_CONFIG_DIR, { recursive: true });
     fs.writeFileSync(
       LEGACY_CONFIG_PATH,

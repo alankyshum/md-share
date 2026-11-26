@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 
 const mocks = vi.hoisted(() => ({
   getFile: vi.fn(), putFile: vi.fn(),
@@ -29,6 +30,24 @@ afterEach(() => {
 });
 
 describe('public expiry publication', () => {
+  it('publishes a document just below the limit and encrypts the complete content', async () => {
+    const { shareCommand, MAX_MARKDOWN_LENGTH } = await import('../src/commands/share.js');
+    const { loadManifest } = await import('../src/config/manifest.js');
+    const { decryptShare, base64UrlToBytes } = await import('@alankyshum/share-crypto');
+    const text = randomBytes(Math.ceil(MAX_MARKDOWN_LENGTH * 3 / 4)).toString('base64').slice(0, MAX_MARKDOWN_LENGTH - 1);
+    await shareCommand(undefined, { text, lint: false, copy: false, expires: '1d' });
+    const share = JSON.parse(mocks.putFile.mock.calls[0][2]);
+    const key = Object.values(loadManifest().shares)[0].key;
+    expect(await decryptShare(base64UrlToBytes(share.iv), base64UrlToBytes(share.ct), base64UrlToBytes(key))).toBe(text);
+    expect(mocks.putFile).toHaveBeenCalledTimes(1);
+  }, 30000);
+  it('rejects a document just over the UTF-16 limit without writing', async () => {
+    const { shareCommand, MAX_MARKDOWN_LENGTH } = await import('../src/commands/share.js');
+    await expect(shareCommand(undefined, { text: 'a'.repeat(MAX_MARKDOWN_LENGTH + 1), lint: false, copy: false }))
+      .rejects.toThrow('Markdown exceeds the 3,000,000 UTF-16 code unit storage limit');
+    expect(mocks.getFile).not.toHaveBeenCalled();
+    expect(mocks.putFile).not.toHaveBeenCalled();
+  });
   it('records expiry and enforces no duplicate overwrite', async () => {
     const { shareCommand } = await import('../src/commands/share.js');
     const { loadManifest } = await import('../src/config/manifest.js');
